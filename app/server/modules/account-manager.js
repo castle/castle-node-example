@@ -56,7 +56,7 @@ exports.generateLoginKey = function(user, ipAddress, callback)
 	accounts.findOneAndUpdate({user:user}, {$set:{
 		ip : ipAddress,
 		cookie : cookie
-	}}, {returnOriginal : false}, function(e, o){ 
+	}}, {returnOriginal : false}, function(e, o){
 		callback(cookie);
 	});
 }
@@ -127,7 +127,7 @@ exports.updateAccount = function(newData, callback)
 	}
 	if (newData.pass == ''){
 		findOneAndUpdate(newData);
-	}	else { 
+	}	else {
 		saltAndHash(newData.pass, function(hash){
 			newData.pass = hash;
 			findOneAndUpdate(newData);
@@ -209,4 +209,3 @@ var listIndexes = function()
 		for (var i = 0; i < indexes.length; i++) console.log('index:', i, indexes[i]);
 	});
 }
-
