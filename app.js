@@ -30,10 +30,10 @@ process.env.DB_HOST = process.env.DB_HOST || 'localhost'
 process.env.DB_PORT = process.env.DB_PORT || 27017;
 process.env.DB_NAME = process.env.DB_NAME || 'node-login';
 
-if (app.get('env') != 'live'){
+if (app.get('env') != 'production'){
 	process.env.DB_URL = 'mongodb://'+process.env.DB_HOST+':'+process.env.DB_PORT;
 }	else {
-// prepend url with authentication credentials // 
+// prepend url with authentication credentials //
 	process.env.DB_URL = 'mongodb://'+process.env.DB_USER+':'+process.env.DB_PASS+'@'+process.env.DB_HOST+':'+process.env.DB_PORT;
 }
 
@@ -51,4 +51,3 @@ require('./app/server/routes')(app);
 http.createServer(app).listen(app.get('port'), function(){
 	console.log('Express server listening on port ' + app.get('port'));
 });
-
