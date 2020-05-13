@@ -20,8 +20,7 @@ $(document).ready(function(){
 			if (status == 'success') window.location.href = '/home';
 		},
 		error : function(e){
-      console.log(e)
-			lv.showLoginError('Login Failure', e.message);
+			lv.showLoginError('Login Failure', 'Please check your username and/or password');
 		}
 	});
 
