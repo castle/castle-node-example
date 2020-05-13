@@ -21,7 +21,7 @@ $(document).ready(function(){
 		},
 		error : function(e){
       console.log(e)
-			lv.showLoginError('Login Failure', 'Please check your username and/or password');
+			lv.showLoginError('Login Failure', e.message);
 		}
 	});
 
