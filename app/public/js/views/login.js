@@ -20,9 +20,10 @@ $(document).ready(function(){
 			if (status == 'success') window.location.href = '/home';
 		},
 		error : function(e){
+      console.log(e)
 			lv.showLoginError('Login Failure', 'Please check your username and/or password');
 		}
-	}); 
+	});
 
 	$("input:text:visible:first").focus();
 	$('#btn_remember').click(function(){
@@ -37,9 +38,9 @@ $(document).ready(function(){
 	});
 
 // login retrieval form via email //
-	
+
 	var ev = new EmailValidator();
-	
+
 	$('#get-credentials-form').ajaxForm({
 		url: '/lost-password',
 		beforeSubmit : function(formData, jqForm, options){
@@ -66,5 +67,5 @@ $(document).ready(function(){
 			}
 		}
 	});
-	
+
 });
