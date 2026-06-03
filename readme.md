@@ -19,6 +19,14 @@ ad-hoc custom event (`Castle.custom()`).
 | ---- | ----- |
 | ![Home](docs/screenshots/home.png) | ![Login](docs/screenshots/login.png) |
 
+## React integration
+
+The server-rendered pages above use the browser SDK directly. For a modern
+single-page-app setup, [`react/`](react/) contains a **React + Vite +
+TypeScript** front end that integrates `@castleio/castle-js` through a
+`CastleProvider` / `useCastle()` hook and drives the same Express backend. See
+[`react/README.md`](react/README.md) for details.
+
 ## Prerequisites
 
 You'll need a Castle tenant to run this app against. If you don't already have one, you can start a free trial at https://castle.io.
