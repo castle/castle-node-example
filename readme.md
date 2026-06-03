@@ -68,12 +68,23 @@ npm run dev
 
 ## Running the tests
 
-The route handlers are covered by a Jest + Supertest suite that stubs the Castle
-SDK, so no network access or API secret is needed:
+The app is covered by a Jest + Supertest suite (no network access or API secret
+needed):
 
 ```bash
 npm test
 ```
+
+It includes three layers:
+
+- **route tests** (`test/app.test.js`) — the endpoint logic with the Castle
+  client stubbed (e.g. login routing to `risk` vs `filter`).
+- **SDK integration tests** (`test/sdk-integration.test.js`) — the *real* Castle
+  SDK driven through its `overrideFetch` hook, asserting the request URL,
+  method, auth header and JSON body, plus response parsing, error mapping and
+  failover behaviour.
+- **front-end tests** (`test/frontend.test.js`) — the verdict banner rendering,
+  run against `static/app.js` in jsdom.
 
 ## Running with Docker
 
