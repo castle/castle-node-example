@@ -1,4 +1,4 @@
-import type { EvaluateLoginResponse } from '../api.ts';
+import type { EvaluateResponse } from '../api.ts';
 
 const ACTION_CLASS: Record<string, string> = {
   allow: 'verdict-allow',
@@ -6,7 +6,7 @@ const ACTION_CLASS: Record<string, string> = {
   deny: 'verdict-deny',
 };
 
-function Verdict({ response }: { response: EvaluateLoginResponse }) {
+function Verdict({ response }: { response: EvaluateResponse }) {
   const action = response.result.policy?.action;
   if (!action) return null;
 
@@ -36,7 +36,7 @@ function Verdict({ response }: { response: EvaluateLoginResponse }) {
   );
 }
 
-export function ResultPanel({ response }: { response: EvaluateLoginResponse }) {
+export function ResultPanel({ response }: { response: EvaluateResponse }) {
   return (
     <div className="card mt-6">
       <div className="eyebrow">result</div>

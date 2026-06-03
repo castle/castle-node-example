@@ -31,8 +31,6 @@ function stubbedCastle(overrides = {}) {
     fetchAllLists: { total_count: 1, data: [{ id: 'list_1' }] },
     requestUserData: { status: 'pending' },
     deleteUserData: { status: 'pending' },
-    eventsSchema: { fields: [] },
-    queryEvents: { data: [] },
   };
   Object.entries({ ...defaults, ...overrides }).forEach(([method, value]) => {
     jest.spyOn(castle, method).mockResolvedValue(value);
@@ -58,7 +56,16 @@ describe('page routes', () => {
     expect(res.text).toContain('Log in');
   });
 
-  test.each(['password_reset', 'lists', 'privacy', 'events'])(
+  test('GET /account renders the React account shell', async () => {
+    const res = await request(app).get('/account');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('Your account');
+    // config for the React app is injected, not the global SDK chrome
+    expect(res.text).toContain('window.CASTLE_ACCOUNT');
+    expect(res.text).not.toContain('/vendor/castle-js/castle.browser.js');
+  });
+
+  test.each(['signup', 'password_reset', 'lists', 'privacy'])(
     'GET /%s renders',
     async (name) => {
       const res = await request(app).get('/' + name);
@@ -134,6 +141,87 @@ describe('POST /evaluate_login', () => {
   });
 });
 
+describe('POST /evaluate_signup', () => {
+  test('a new email is risk-assessed as $registration', async () => {
+    const castle = stubbedCastle();
+    const res = await request(buildApp(castle)).post('/evaluate_signup').send({
+      name: 'Lois Lane',
+      email: 'lois.lane@dailyplanet.com',
+      password: 'whatever',
+      request_token: 'tok',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.api_endpoint).toBe('risk');
+    expect(res.body.castle_type).toBe('$registration');
+    expect(res.body.castle_status).toBe('$succeeded');
+    expect(castle.risk).toHaveBeenCalledTimes(1);
+    expect(res.body.payload_to_castle).not.toHaveProperty('context');
+  });
+
+  test('an already-registered email goes to filter as $failed', async () => {
+    const castle = stubbedCastle();
+    const res = await request(buildApp(castle)).post('/evaluate_signup').send({
+      name: 'Clark Kent',
+      email: VALID_USERNAME,
+      password: 'whatever',
+      request_token: 'tok',
+    });
+
+    expect(res.body.api_endpoint).toBe('filter');
+    expect(res.body.castle_status).toBe('$failed');
+    expect(castle.filter).toHaveBeenCalledTimes(1);
+    expect(castle.risk).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /evaluate_logout', () => {
+  test('records $logout via the log endpoint', async () => {
+    const castle = stubbedCastle();
+    const res = await request(buildApp(castle))
+      .post('/evaluate_logout')
+      .send({ request_token: 'tok' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.api_endpoint).toBe('log');
+    expect(res.body.castle_type).toBe('$logout');
+    expect(res.body.result).toEqual({ logged: true });
+    expect(castle.log).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('POST /evaluate_profile_update', () => {
+  test('sends a $profile_update to risk and echoes the new details', async () => {
+    const castle = stubbedCastle();
+    const res = await request(buildApp(castle)).post('/evaluate_profile_update').send({
+      name: 'Kal-El',
+      email: 'kal.el@dailyplanet.com',
+      request_token: 'tok',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.api_endpoint).toBe('risk');
+    expect(res.body.castle_type).toBe('$profile_update');
+    expect(castle.risk).toHaveBeenCalledTimes(1);
+    expect(res.body.payload_to_castle).not.toHaveProperty('context');
+    expect(res.body.payload_to_castle.user.name).toBe('Kal-El');
+    expect(res.body.payload_to_castle.user.email).toBe('kal.el@dailyplanet.com');
+    expect(res.body.result.policy.action).toBe('allow');
+  });
+
+  test('surfaces API errors without crashing', async () => {
+    const castle = stubbedCastle();
+    castle.risk.mockRejectedValue(new APIError('Responded with 401 code'));
+
+    const res = await request(buildApp(castle))
+      .post('/evaluate_profile_update')
+      .send({ name: 'Kal-El', email: 'kal.el@dailyplanet.com', request_token: 'tok' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.result.error).toMatch(/401/);
+  });
+});
+
 describe('POST /evaluate_new_password', () => {
   test('a new (different) password logs $succeeded', async () => {
     const castle = stubbedCastle();
@@ -195,28 +283,6 @@ describe('account-level APIs', () => {
       identifier: 'user_42',
       identifier_type: '$id',
     });
-  });
-
-  test('POST /events_schema fetches the schema', async () => {
-    const castle = stubbedCastle();
-    const res = await request(buildApp(castle)).post('/events_schema').send({});
-
-    expect(res.body.api_endpoint).toBe('events/schema');
-    expect(castle.eventsSchema).toHaveBeenCalledTimes(1);
-  });
-
-  test('POST /query_events builds a filter from the request body', async () => {
-    const castle = stubbedCastle();
-    const res = await request(buildApp(castle))
-      .post('/query_events')
-      .send({ field: 'name', op: '$eq', value: '$login' });
-
-    expect(res.body.api_endpoint).toBe('events/query');
-    expect(castle.queryEvents).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filters: [{ field: 'name', op: '$eq', value: '$login' }],
-      })
-    );
   });
 
   test('account-level errors are surfaced as result.error', async () => {

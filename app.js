@@ -2,6 +2,7 @@
 
 require('dotenv').config({ quiet: true });
 
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 
@@ -49,6 +50,13 @@ function buildApp(castle = require('./castle')) {
   );
   app.use('/vendor/castle-js', express.static(CASTLE_JS_DIR));
 
+  // The post-login /account page is a React app (see ./react). When built, its
+  // bundle lives in react/dist and is served from /react-app.
+  const REACT_DIST = path.join(__dirname, 'react', 'dist');
+  const REACT_ENTRY = '/react-app/assets/account.js';
+  const REACT_STYLES = '/react-app/assets/account.css';
+  app.use('/react-app', express.static(REACT_DIST));
+
   // Build the request context (IP, headers, client id) Castle needs from a Node
   // request. Lists/Privacy/Events are account-level and don't need it.
   const buildContext = (req) =>
@@ -65,6 +73,23 @@ function buildApp(castle = require('./castle')) {
     res.render('demo', { ...getDefaultParams(), home: true });
   });
 
+  // Post-login account page. Serves a Pug shell that mounts the React app and
+  // hands it the publishable key + current user via window.CASTLE_ACCOUNT.
+  app.get('/account', (_req, res) => {
+    res.render('account', {
+      ...getDefaultParams(),
+      account: true,
+      react_built: fs.existsSync(path.join(REACT_DIST, 'assets', 'account.js')),
+      react_js: REACT_ENTRY,
+      react_css: REACT_STYLES,
+      account_user: {
+        id: process.env.valid_user_id || null,
+        email: process.env.valid_username || null,
+        name: process.env.valid_name || 'Clark Kent',
+      },
+    });
+  });
+
   app.get('/:demoName', (req, res) => {
     const params = getDefaultParams();
     const { demoName } = req.params;
@@ -79,6 +104,49 @@ function buildApp(castle = require('./castle')) {
     });
 
     return res.render(demoName, params);
+  });
+
+  // -------------------------------------------------------------------------
+  // Risk / Filter (registration)
+  // -------------------------------------------------------------------------
+
+  app.post('/evaluate_signup', async (req, res) => {
+    const { name, email, request_token } = req.body;
+
+    const castleType = '$registration';
+    // An email that's already taken (the known demo user) is a failed
+    // registration and goes to /filter; a fresh sign-up is risk-assessed.
+    const alreadyRegistered = email === process.env.valid_username;
+    const castleStatus = alreadyRegistered ? '$failed' : '$succeeded';
+    const apiEndpoint = alreadyRegistered ? 'filter' : 'risk';
+
+    const payloadToCastle = {
+      type: castleType,
+      status: castleStatus,
+      user: { id: process.env.valid_user_id, email, name },
+      request_token,
+      context: buildContext(req),
+    };
+
+    let result;
+    try {
+      result =
+        apiEndpoint === 'risk'
+          ? await castle.risk(payloadToCastle)
+          : await castle.filter(payloadToCastle);
+    } catch (err) {
+      result = errorResult(err);
+    }
+
+    const { context, ...echoedPayload } = payloadToCastle;
+
+    res.json({
+      api_endpoint: apiEndpoint,
+      payload_to_castle: echoedPayload,
+      result,
+      castle_type: castleType,
+      castle_status: castleStatus,
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -146,6 +214,49 @@ function buildApp(castle = require('./castle')) {
   });
 
   // -------------------------------------------------------------------------
+  // Risk (profile update) — driven by the React /account page
+  // -------------------------------------------------------------------------
+
+  app.post('/evaluate_profile_update', async (req, res) => {
+    const { name, email, request_token } = req.body;
+
+    const castleType = '$profile_update';
+    const castleStatus = '$succeeded';
+
+    const payloadToCastle = {
+      type: castleType,
+      status: castleStatus,
+      user: {
+        id: process.env.valid_user_id,
+        email: email || process.env.valid_username,
+        name,
+        registered_at: registeredAt,
+      },
+      request_token,
+      context: buildContext(req),
+    };
+
+    // A profile change is a sensitive action, so evaluate it with /risk and act
+    // on the verdict (allow / challenge / deny).
+    let result;
+    try {
+      result = await castle.risk(payloadToCastle);
+    } catch (err) {
+      result = errorResult(err);
+    }
+
+    const { context, ...echoedPayload } = payloadToCastle;
+
+    res.json({
+      api_endpoint: 'risk',
+      payload_to_castle: echoedPayload,
+      result,
+      castle_type: castleType,
+      castle_status: castleStatus,
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Log (password reset)
   // -------------------------------------------------------------------------
 
@@ -186,6 +297,40 @@ function buildApp(castle = require('./castle')) {
       result: error ? { error } : { logged: true },
       type: castleType,
       status: castleStatus,
+    });
+  });
+
+  // Logout is recorded with the non-blocking log endpoint as well.
+  app.post('/evaluate_logout', async (req, res) => {
+    const { request_token } = req.body;
+
+    const castleType = '$logout';
+    const payloadToCastle = {
+      type: castleType,
+      status: '$succeeded',
+      user: {
+        id: process.env.valid_user_id,
+        email: process.env.valid_username,
+      },
+      request_token,
+      context: buildContext(req),
+    };
+
+    let error;
+    try {
+      await castle.log(payloadToCastle);
+    } catch (err) {
+      error = errorResult(err).error;
+    }
+
+    const { context, ...echoedPayload } = payloadToCastle;
+
+    res.json({
+      api_endpoint: 'log',
+      payload_to_castle: echoedPayload,
+      result: error ? { error } : { logged: true },
+      castle_type: castleType,
+      castle_status: '$succeeded',
     });
   });
 
@@ -242,49 +387,23 @@ function buildApp(castle = require('./castle')) {
     res.json({ api_endpoint: apiEndpoint, payload_to_castle: payload, result });
   });
 
-  // -------------------------------------------------------------------------
-  // Events API
-  // -------------------------------------------------------------------------
-
-  app.post('/events_schema', async (_req, res) => {
-    let result;
-    try {
-      result = await castle.eventsSchema();
-    } catch (err) {
-      result = errorResult(err);
-    }
-
-    res.json({ api_endpoint: 'events/schema', payload_to_castle: {}, result });
-  });
-
-  app.post('/query_events', async (req, res) => {
-    const payload = {
-      filters: [
-        {
-          field: req.body.field || 'name',
-          op: req.body.op || '$eq',
-          value: req.body.value || '$login',
-        },
-      ],
-      sort: { field: 'created_at', order: 'desc' },
-    };
-
-    let result;
-    try {
-      result = await castle.queryEvents(payload);
-    } catch (err) {
-      result = errorResult(err);
-    }
-
-    res.json({ api_endpoint: 'events/query', payload_to_castle: payload, result });
-  });
-
   return app;
 }
 
 // Start the server only when run directly (`node app.js`), not when imported
 // by the test suite.
 if (require.main === module) {
+  // Castle.log is fire-and-forget: it dispatches the request without surfacing
+  // the promise, so a failed background log (e.g. bad credentials) would
+  // otherwise become an unhandled rejection and crash the process. Log it and
+  // keep serving instead.
+  process.on('unhandledRejection', (err) => {
+    console.error(
+      'Unhandled rejection (ignored):',
+      err && err.message ? err.message : err
+    );
+  });
+
   const port = process.env.PORT || 4006;
   buildApp().listen(port, () => {
     console.log(`Castle Node demo listening on http://localhost:${port}`);

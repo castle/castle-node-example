@@ -6,7 +6,7 @@ export interface CastleResult {
   [key: string]: unknown;
 }
 
-export interface EvaluateLoginResponse {
+export interface EvaluateResponse {
   api_endpoint: string;
   payload_to_castle: Record<string, unknown>;
   result: CastleResult;
@@ -26,16 +26,26 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
-export interface LoginInput {
+export interface ProfileUpdateInput {
+  name: string;
   email: string;
-  password: string;
   requestToken: string;
 }
 
-export function evaluateLogin(input: LoginInput): Promise<EvaluateLoginResponse> {
-  return postJSON<EvaluateLoginResponse>('/evaluate_login', {
+/** Evaluate a profile update ($profile_update) through the Express backend. */
+export function evaluateProfileUpdate(
+  input: ProfileUpdateInput,
+): Promise<EvaluateResponse> {
+  return postJSON<EvaluateResponse>('/evaluate_profile_update', {
+    name: input.name,
     email: input.email,
-    password: input.password,
     request_token: input.requestToken,
+  });
+}
+
+/** Record a logout ($logout) via the non-blocking log endpoint. */
+export function evaluateLogout(requestToken: string): Promise<EvaluateResponse> {
+  return postJSON<EvaluateResponse>('/evaluate_logout', {
+    request_token: requestToken,
   });
 }

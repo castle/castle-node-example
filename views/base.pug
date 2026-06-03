@@ -11,15 +11,20 @@ html(lang="en")
     link(href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet")
     link(href="/static/styles.css" rel="stylesheet")
 
-    script(src="/vendor/castle-js/castle.browser.js")
-    //- Server-rendered config, read by the browser without string interpolation.
-    script(type="application/json" id="castle-config")!= JSON.stringify({ pk: castle_pk || null, valid_username: valid_username || null, valid_password: valid_password || null, invalid_password: invalid_password || null })
-    script.
-      window.CASTLE_DEMO = JSON.parse(document.getElementById('castle-config').textContent);
-      if (window.Castle && window.CASTLE_DEMO.pk) {
-        Castle.configure({ pk: window.CASTLE_DEMO.pk });
-      }
-    script(src="/static/app.js" defer)
+    block head
+
+    //- The server-rendered pages use the global browser SDK directly. The
+    //- React /account page bundles its own SDK instance, so it skips this.
+    if !account
+      script(src="/vendor/castle-js/castle.browser.js")
+      //- Server-rendered config, read by the browser without string interpolation.
+      script(type="application/json" id="castle-config")!= JSON.stringify({ pk: castle_pk || null, valid_username: valid_username || null, valid_password: valid_password || null, invalid_password: invalid_password || null })
+      script.
+        window.CASTLE_DEMO = JSON.parse(document.getElementById('castle-config').textContent);
+        if (window.Castle && window.CASTLE_DEMO.pk) {
+          Castle.configure({ pk: window.CASTLE_DEMO.pk });
+        }
+      script(src="/static/app.js" defer)
 
   body
     nav.navbar
@@ -31,6 +36,7 @@ html(lang="en")
       .nav-links
         each demo in demo_list
           a(href="/" + demo.url)= demo.friendly_name
+        a(href="/account") account
         a(href="https://github.com/castle/castle-node-example" target="_blank" rel="noopener") GitHub
         a(href="https://docs.castle.io" target="_blank" rel="noopener") Docs
 

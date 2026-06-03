@@ -142,6 +142,42 @@ describe('risk / filter request building', () => {
     expect(fetch.calls[0].pathname).toBe('/v1/filter');
     expect(fetch.calls[0].body).toMatchObject({ type: '$login', status: '$failed' });
   });
+
+  test('a new registration POSTs $registration to /v1/risk', async () => {
+    const fetch = recordingFetch({
+      'POST /v1/risk': () => httpResponse(200, { policy: { action: 'allow' }, risk: 0.2 }),
+    });
+
+    const res = await request(buildApp(makeCastle(fetch)))
+      .post('/evaluate_signup')
+      .send({ name: 'Lois Lane', email: 'lois.lane@dailyplanet.com', request_token: 'tok' });
+
+    expect(res.body.api_endpoint).toBe('risk');
+    expect(fetch.calls[0].pathname).toBe('/v1/risk');
+    expect(fetch.calls[0].body).toMatchObject({
+      type: '$registration',
+      status: '$succeeded',
+      request_token: 'tok',
+      user: { email: 'lois.lane@dailyplanet.com', name: 'Lois Lane' },
+    });
+  });
+
+  test('a profile update POSTs $profile_update to /v1/risk', async () => {
+    const fetch = recordingFetch({
+      'POST /v1/risk': () => httpResponse(200, { policy: { action: 'allow' }, risk: 0.1 }),
+    });
+
+    const res = await request(buildApp(makeCastle(fetch)))
+      .post('/evaluate_profile_update')
+      .send({ name: 'Kal-El', email: 'kal.el@dailyplanet.com', request_token: 'tok' });
+
+    expect(res.body.api_endpoint).toBe('risk');
+    expect(fetch.calls[0].body).toMatchObject({
+      type: '$profile_update',
+      request_token: 'tok',
+      user: { name: 'Kal-El', email: 'kal.el@dailyplanet.com' },
+    });
+  });
 });
 
 describe('error mapping', () => {
@@ -252,6 +288,21 @@ describe('log (fire-and-forget)', () => {
     expect(fetch.calls[0].pathname).toBe('/v1/log');
     expect(fetch.calls[0].body).toMatchObject({ type: '$password_reset' });
   });
+
+  test('logout POSTs $logout to /v1/log', async () => {
+    const fetch = recordingFetch({ 'POST /v1/log': () => httpResponse(200, {}) });
+
+    const res = await request(buildApp(makeCastle(fetch)))
+      .post('/evaluate_logout')
+      .send({ request_token: 'tok' });
+
+    expect(res.body.api_endpoint).toBe('log');
+    expect(res.body.result).toEqual({ logged: true });
+
+    await flush();
+    expect(fetch.calls[0].pathname).toBe('/v1/log');
+    expect(fetch.calls[0].body).toMatchObject({ type: '$logout', status: '$succeeded' });
+  });
 });
 
 describe('Lists API', () => {
@@ -315,32 +366,3 @@ describe('Privacy API', () => {
   });
 });
 
-describe('Events API', () => {
-  test('events schema GETs /v1/events/schema', async () => {
-    const fetch = recordingFetch({
-      'GET /v1/events/schema': () => httpResponse(200, { fields: [] }),
-    });
-
-    const res = await request(buildApp(makeCastle(fetch))).post('/events_schema').send({});
-
-    expect(res.body.api_endpoint).toBe('events/schema');
-    expect(fetch.calls[0]).toMatchObject({ method: 'GET', pathname: '/v1/events/schema' });
-  });
-
-  test('query events POSTs filters to /v1/events/query', async () => {
-    const fetch = recordingFetch({
-      'POST /v1/events/query': () => httpResponse(200, { data: [] }),
-    });
-
-    const res = await request(buildApp(makeCastle(fetch)))
-      .post('/query_events')
-      .send({ field: 'name', op: '$eq', value: '$login' });
-
-    expect(res.body.api_endpoint).toBe('events/query');
-    expect(fetch.calls[0]).toMatchObject({ method: 'POST', pathname: '/v1/events/query' });
-    expect(fetch.calls[0].body).toMatchObject({
-      filters: [{ field: 'name', op: '$eq', value: '$login' }],
-      sort: { field: 'created_at', order: 'desc' },
-    });
-  });
-});
