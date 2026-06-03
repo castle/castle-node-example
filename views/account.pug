@@ -1,0 +1,29 @@
+extends base
+
+block head
+  if react_built
+    link(href=react_css rel="stylesheet")
+  //- Hand the React app its config without string interpolation in markup.
+  script(type="application/json" id="castle-account-config")!= JSON.stringify({ pk: castle_pk || null, user: account_user })
+  script.
+    window.CASTLE_ACCOUNT = JSON.parse(document.getElementById('castle-account-config').textContent);
+
+block content
+  section.mb-6
+    span.tag castle browser sdk · react
+    h1(class="text-[1.6rem] mt-3") Your account
+    p.text-muted You're signed in. This page is a React app mounted inside the Express demo — use it to test the React integration.
+
+  if react_built
+    #root
+  else
+    .card
+      .eyebrow react bundle not built
+      p.text-muted(style="margin-top:.4rem;") Build the React app to enable this page:
+      pre.json npm install --prefix react
+        | 
+        | npm run build --prefix react
+
+block scripts
+  if react_built
+    script(type="module" src=react_js)

@@ -2,6 +2,10 @@
 
 // Each demo maps to a route (/<key>) and a Pug template (views/<key>.pug).
 const demos = {
+  signup: {
+    friendly_name: 'sign up',
+    blurb: 'Evaluate a registration ($registration) with the risk endpoint.',
+  },
   login: {
     friendly_name: 'login',
     blurb: 'Evaluate a login with the risk and filter endpoints.',
@@ -18,10 +22,6 @@ const demos = {
   privacy: {
     friendly_name: 'privacy',
     blurb: "Request or delete a user's data with the Privacy API.",
-  },
-  events: {
-    friendly_name: 'events',
-    blurb: 'Inspect your event schema and query events.',
   },
 };
 

@@ -4,20 +4,38 @@ This project demonstrates key components of several essential Castle workflows. 
 
 ## What's demonstrated
 
-- **login** – `risk` (successful login) and `filter` (failed login) endpoints, with the verdict (allow / challenge / deny), risk score and signals surfaced in the UI
-- **password reset** – the non-blocking `log` endpoint
+The app walks through a full user lifecycle. Every request mints a fresh Castle
+request token in the browser (`Castle.createRequestToken()`) and forwards it to
+the backend.
+
+Server-rendered (Pug) pages:
+
+- **sign up** – `$registration` to `risk` (a new email) or `filter` (an email that already exists)
+- **login** – `$login` to `risk` (successful) or `filter` (failed), with the verdict (allow / challenge / deny), risk score and signals surfaced in the UI
+- **password reset** – `$password_reset` via the non-blocking `log` endpoint
 - **lists** – the Lists API (`createList`, `fetchAllLists`)
 - **privacy** – the Privacy API (`requestUserData`, `deleteUserData`)
-- **events** – the Events API (`eventsSchema`, `queryEvents`)
 
-The browser SDK is also used to track page views (`Castle.page()`) and send an
-ad-hoc custom event (`Castle.custom()`).
+Post-login React `/account` page (see [React integration](#react-integration)):
+
+- **profile update** – `$profile_update` to `risk`
+- **custom event** – `Castle.custom()` (only available once signed in)
+- **logout** – `$logout` via the non-blocking `log` endpoint
 
 ## Screenshots
 
 | Home | Login |
 | ---- | ----- |
 | ![Home](docs/screenshots/home.png) | ![Login](docs/screenshots/login.png) |
+
+## React integration
+
+The post-login `/account` page is a **React + Vite + TypeScript** app
+([`react/`](react/)) served by Express. It integrates `@castleio/castle-js`
+through a `CastleProvider` / `useCastle()` hook (configured once) and mints a
+request token for each action — profile update, custom event and logout. Build
+it with `npm install --prefix react && npm run build --prefix react`; see
+[`react/README.md`](react/README.md) for details.
 
 ## Prerequisites
 
