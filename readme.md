@@ -4,11 +4,14 @@ This project demonstrates key components of several essential Castle workflows. 
 
 ## What's demonstrated
 
-- **login** – `risk` (successful login) and `filter` (failed login) endpoints
+- **login** – `risk` (successful login) and `filter` (failed login) endpoints, with the verdict (allow / challenge / deny), risk score and signals surfaced in the UI
 - **password reset** – the non-blocking `log` endpoint
 - **lists** – the Lists API (`createList`, `fetchAllLists`)
 - **privacy** – the Privacy API (`requestUserData`, `deleteUserData`)
 - **events** – the Events API (`eventsSchema`, `queryEvents`)
+
+The browser SDK is also used to track page views (`Castle.page()`) and send an
+ad-hoc custom event (`Castle.custom()`).
 
 ## Prerequisites
 
@@ -61,6 +64,15 @@ For development with auto-reload:
 
 ```bash
 npm run dev
+```
+
+## Running the tests
+
+The route handlers are covered by a Jest + Supertest suite that stubs the Castle
+SDK, so no network access or API secret is needed:
+
+```bash
+npm test
 ```
 
 ## Running with Docker

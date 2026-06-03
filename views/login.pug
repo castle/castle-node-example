@@ -13,8 +13,14 @@ block ui
     .field
       label(for="password") password
       input(type="password" id="password")
+    label.checkbox
+      input(type="checkbox" id="remember")
+      |  Remember me
     .btn-row
       button.primary(onclick="login()") Log in
+    .form-links
+      a(href="/password_reset") Forgot your password?
+      a(href="#" onclick="trackCustomEvent('$custom'); return false;") Send a custom event
 
 block desc
   p A login attempt has three common outcomes, and each maps to a different Castle endpoint:
