@@ -3,13 +3,13 @@ extends demo
 block ui
   .field
     label(for="identifier") identifier
-    input(type="text" id="identifier" value=valid_username)
+    input.input(type="text" id="identifier" value=valid_username)
   .field
     label(for="identifier_type") identifier type
-    input(type="text" id="identifier_type" value="$email")
+    input.input(type="text" id="identifier_type" value="$email")
   .btn-row
-    button.primary(onclick="privacy('request')") Request user data
-    button(onclick="privacy('delete')") Delete user data
+    button.btn.btn-primary(onclick="privacy('request')") Request user data
+    button.btn(onclick="privacy('delete')") Delete user data
 
 block desc
   p The 

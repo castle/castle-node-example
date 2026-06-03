@@ -24,17 +24,17 @@ html(lang="en")
   body
     nav.navbar
       a.brand(href="/")
-        span.dot
+        span.brand-dot
         |  Castle
         |  
-        span.muted(style="font-weight:400") demo
+        span.text-muted(style="font-weight:400") demo
       .nav-links
         each demo in demo_list
           a(href="/" + demo.url)= demo.friendly_name
         a(href="https://github.com/castle/castle-node-example" target="_blank" rel="noopener") GitHub
         a(href="https://docs.castle.io" target="_blank" rel="noopener") Docs
 
-    main.container
+    main.container-page
       block content
 
     block scripts
