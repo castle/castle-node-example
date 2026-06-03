@@ -1,53 +1,90 @@
-# Node Login
+# Castle demo application: Node
 
-[![node-login](./readme.img/node-login.jpg?raw=true)](https://nodejs-login.herokuapp.com)
+This project demonstrates key components of several essential Castle workflows. It is built in Node.js on Express and uses the [Castle Node SDK](https://github.com/castle/castle-node) (3.0).
 
-### A basic account management system built in Node.js with the following features:
+## What's demonstrated
 
-* New User Account Creation
-* Secure Password Reset via Email
-* Ability to Update / Delete Account
-* Session Tracking for Logged-In Users
-* Local Cookie Storage for Returning Users
-* Blowfish-based Scheme Password Encryption
+- **login** – `risk` (successful login) and `filter` (failed login) endpoints
+- **password reset** – the non-blocking `log` endpoint
+- **lists** – the Lists API (`createList`, `fetchAllLists`)
+- **privacy** – the Privacy API (`requestUserData`, `deleteUserData`)
+- **events** – the Events API (`eventsSchema`, `queryEvents`)
 
-## Live Demo
+## Prerequisites
 
-[https://nodejs-login.herokuapp.com](https://nodejs-login.herokuapp.com)
+You'll need a Castle tenant to run this app against. If you don't already have one, you can start a free trial at https://castle.io.
 
-For testing purposes you can view a [database dump of all accounts here](https://nodejs-login.herokuapp.com/print).<br>Note: This database automatically resets every 24 hours.
+From your Castle dashboard you'll need two values:
 
-## Installation & Setup
-1. Install [Node.js](https://nodejs.org/) & [MongoDB](https://www.mongodb.org/) if you haven't already.
-2. Clone this repository and install its dependencies.
-		
-		> git clone git://github.com/braitsch/node-login.git node-login
-		> cd node-login
-		> npm install
-		
-3. In a separate shell start MongoDB.
+- your **publishable key** (`pk`) – used by the browser SDK
+- your **API secret** – used by the backend SDK
 
-		> mongod
+## Running locally
 
-4. From within the node-login directory start the server.
+This is a Node.js app. The Castle Node SDK 3.0 requires **Node.js 20 or newer**.
 
-		> node app
-		
-5. Open a browser window and navigate to: [http://localhost:3000](http://localhost:3000)
+Clone the repo and change into it:
 
-## Password Retrieval
+```bash
+git clone https://github.com/castle/castle-node-example.git
+cd castle-node-example
+```
 
-To enable the password retrieval feature it is recommended that you create environment variables for your credentials instead of hard coding them into the [email dispatcher module](https://github.com/braitsch/node-login/blob/master/app/server/modules/email-dispatcher.js).
+Install the dependencies. This also installs the browser SDK
+(`@castleio/castle-js`), which is served at runtime straight from
+`node_modules` (at `/vendor/castle-js/...`), so there's no file to copy or
+commit:
 
-To do this on OSX you can simply add them to your .profile or .bashrc file.
+```bash
+npm install
+```
 
-	export NL_EMAIL_HOST='smtp.gmail.com'
-	export NL_EMAIL_USER='your.email@gmail.com'
-	export NL_EMAIL_PASS='1234'
+> **Note on the SDK version.** This example uses Castle Node SDK `3.0`. Until it
+> is published to npm, `package.json` references a bundled tarball
+> (`castleio-sdk-3.0.0.tgz`). Once `3.0` is on npm, change the dependency to
+> `"@castleio/sdk": "^3.0.0"` and delete the tarball.
 
-[![node-login](./readme.img/retrieve-password.jpg?raw=true)](https://nodejs-login.herokuapp.com)
+Create your `.env` from the example and fill in your Castle publishable key (`castle_pk`), API secret (`castle_api_secret`) and a `valid_password`:
 
+```bash
+cp .env_example .env
+```
 
-## Contributing
+Run the app:
 
-Questions and suggestions for improvement are welcome.
+```bash
+npm start
+# Castle Node demo listening on http://localhost:4006
+```
+
+For development with auto-reload:
+
+```bash
+npm run dev
+```
+
+## Running with Docker
+
+The bundled `Dockerfile` builds from local source and serves the app on port 80.
+
+Build the image:
+
+```bash
+docker build -t castle-demo-node .
+```
+
+Run a container. The non-secret demo values (`valid_username`, `valid_user_id`, etc.) are baked into the image, so you only need to pass your secrets:
+
+```bash
+docker run -d -p 4006:80 \
+  -e castle_pk=YOUR_PUBLISHABLE_KEY \
+  -e castle_api_secret=YOUR_API_SECRET \
+  -e valid_password=YOUR_VALID_PASSWORD \
+  castle-demo-node
+```
+
+The app will be available at http://127.0.0.1:4006.
+
+## Disclaimer
+
+I’m sharing this sample app with the hope that other developers find it valuable. Although it is not an officially supported sample, we welcome questions and suggestions at `support@castle.io`.

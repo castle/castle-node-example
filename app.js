@@ -1,63 +1,287 @@
-/**
- * Node.js Login Boilerplate
- * More Info : https://github.com/braitsch/node-login
- * Copyright (c) 2013-2018 Stephen Braitsch
- **/
+'use strict';
 
-var http = require('http');
-var express = require('express');
-var session = require('express-session');
-var bodyParser = require('body-parser');
-var cookieParser = require('cookie-parser');
-var MongoStore = require('connect-mongo')(session);
+require('dotenv').config();
 
-var app = express();
+const path = require('path');
+const express = require('express');
 
-app.locals.pretty = true;
-app.set('port', process.env.PORT || 3000);
-app.set('views', __dirname + '/app/server/views');
+const { ContextPrepareService, APIError } = require('@castleio/sdk');
+
+const castle = require('./castle');
+const { demos, demoList, validUrls } = require('./demo_config');
+
+const app = express();
+const port = process.env.PORT || 4006;
+
+app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
-app.use(cookieParser());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(require('stylus').middleware({ src: __dirname + '/app/public' }));
-app.use(express.static(__dirname + '/app/public'));
 
-// build mongo database connection url //
+app.use(express.json());
+app.use('/static', express.static(path.join(__dirname, 'static')));
 
-process.env.DB_HOST = process.env.DB_HOST || 'localhost';
-process.env.DB_PORT = process.env.DB_PORT || 27017;
-process.env.DB_NAME = process.env.DB_NAME || 'node-login';
+// Serve the Castle browser SDK straight from the npm install (node_modules)
+// instead of vendoring it into the repo. It ends up at /vendor/castle-js/...
+const CASTLE_JS_DIR = path.join(
+  __dirname,
+  'node_modules',
+  '@castleio',
+  'castle-js',
+  'dist'
+);
+app.use('/vendor/castle-js', express.static(CASTLE_JS_DIR));
 
-if (app.get('env') != 'production') {
-  process.env.DB_URL = 'mongodb://' + process.env.DB_HOST + ':' + process.env.DB_PORT;
-} else {
-  // prepend url with authentication credentials //
-  process.env.DB_URL =
-    'mongodb://' +
-    process.env.DB_USER +
-    ':' +
-    process.env.DB_PASS +
-    '@' +
-    process.env.DB_HOST +
-    ':' +
-    process.env.DB_PORT +
-    '/' +
-    process.env.DB_NAME
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+// default params rendered with every page
+function getDefaultParams() {
+  return {
+    castle_pk: process.env.castle_pk,
+    location: process.env.location || 'localhost',
+    demo_list: demoList,
+    username: process.env.valid_username,
+    invalid_password: process.env.invalid_password,
+    valid_password: process.env.valid_password,
+    valid_username: process.env.valid_username,
+    webhook_url: process.env.webhook_url,
+  };
 }
 
-app.use(
-  session({
-    secret: 'faeb4453e5d14fe6f6d04637f78077c76c73d1b4',
-    proxy: true,
-    resave: true,
-    saveUninitialized: true,
-    store: new MongoStore({ url: process.env.DB_URL }),
-  })
-);
+// Build the request context (IP, headers, client id) Castle needs from a Node
+// request. Lists/Privacy/Events are account-level and don't need it.
+function buildContext(req) {
+  return ContextPrepareService.call(req, {}, castle.configuration);
+}
 
-require('./app/server/routes')(app);
+// another default value
+let registeredAt = '2020-02-23T22:28:55.387Z';
 
-http.createServer(app).listen(app.get('port'), function () {
-  console.log('Express server listening on port ' + app.get('port'));
+// ---------------------------------------------------------------------------
+// Page routes
+// ---------------------------------------------------------------------------
+
+app.get('/', (_req, res) => {
+  res.render('demo', { ...getDefaultParams(), home: true });
 });
+
+app.get('/:demoName', (req, res) => {
+  const params = getDefaultParams();
+  const { demoName } = req.params;
+
+  if (!validUrls.includes(demoName)) {
+    return res.status(404).render('error', params);
+  }
+
+  Object.assign(params, demos[demoName], {
+    demo_name: demoName,
+    [demoName]: true,
+  });
+
+  return res.render(demoName, params);
+});
+
+// ---------------------------------------------------------------------------
+// Risk / Filter (login)
+// ---------------------------------------------------------------------------
+
+app.post('/evaluate_login', async (req, res) => {
+  const { email, password, request_token } = req.body;
+
+  let userId;
+  let castleType = '$login';
+  let castleStatus;
+  let apiEndpoint;
+
+  // check validity of username + password combo
+  if (email === process.env.valid_username) {
+    userId = process.env.valid_user_id;
+
+    if (password === process.env.valid_password) {
+      castleStatus = '$succeeded';
+      apiEndpoint = 'risk';
+    } else {
+      castleStatus = '$failed';
+      apiEndpoint = 'filter';
+    }
+  } else {
+    apiEndpoint = 'filter';
+    castleStatus = '$failed';
+    userId = null;
+    registeredAt = null;
+  }
+
+  const payloadToCastle = {
+    type: castleType,
+    status: castleStatus,
+    user: { id: userId, email },
+    request_token,
+    context: buildContext(req),
+  };
+
+  if (registeredAt) {
+    payloadToCastle.user.registered_at = registeredAt;
+  }
+
+  let result;
+  try {
+    result =
+      apiEndpoint === 'risk'
+        ? await castle.risk(payloadToCastle)
+        : await castle.filter(payloadToCastle);
+  } catch (err) {
+    result = { error: err instanceof APIError ? err.message : String(err) };
+  }
+
+  // context is large and noisy; don't echo it back to the browser.
+  const { context, ...echoedPayload } = payloadToCastle;
+
+  res.json({
+    api_endpoint: apiEndpoint,
+    payload_to_castle: echoedPayload,
+    result,
+    castle_type: castleType,
+    castle_status: castleStatus,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Log (password reset)
+// ---------------------------------------------------------------------------
+
+app.post('/evaluate_new_password', async (req, res) => {
+  const { password, request_token } = req.body;
+
+  // A new password that differs from the current one is a successful reset.
+  const castleStatus = password === process.env.valid_password ? '$failed' : '$succeeded';
+  const castleType = '$password_reset';
+
+  const payloadToCastle = {
+    type: castleType,
+    status: castleStatus,
+    user: {
+      id: process.env.valid_user_id,
+      email: process.env.valid_username,
+      registered_at: registeredAt,
+    },
+    request_token,
+    context: buildContext(req),
+  };
+
+  // $password_reset is a good fit for the non-blocking log endpoint: record the
+  // event without waiting on a verdict.
+  let error;
+  try {
+    await castle.log(payloadToCastle);
+  } catch (err) {
+    error = err instanceof APIError ? err.message : String(err);
+  }
+
+  const { context, ...echoedPayload } = payloadToCastle;
+
+  res.json({
+    api_endpoint: 'log',
+    payload_to_castle: echoedPayload,
+    result: error ? { error } : { logged: true },
+    type: castleType,
+    status: castleStatus,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Lists API
+// ---------------------------------------------------------------------------
+
+app.post('/create_list', async (req, res) => {
+  const payload = {
+    name: req.body.name || 'demo-blocklist',
+    color: req.body.color || '$red',
+    primary_field: req.body.primary_field || 'user.email',
+  };
+
+  let result;
+  try {
+    const created = await castle.createList(payload);
+    const allLists = await castle.fetchAllLists();
+    result = { created, all_lists: allLists };
+  } catch (err) {
+    result = { error: err instanceof APIError ? err.message : String(err) };
+  }
+
+  res.json({ api_endpoint: 'lists', payload_to_castle: payload, result });
+});
+
+// ---------------------------------------------------------------------------
+// Privacy API
+// ---------------------------------------------------------------------------
+
+app.post('/privacy_user_data', async (req, res) => {
+  const action = req.body.action || 'request';
+
+  const payload = {
+    identifier: req.body.identifier || process.env.valid_username,
+    identifier_type: req.body.identifier_type || '$email',
+  };
+
+  let apiEndpoint;
+  let result;
+  try {
+    if (action === 'delete') {
+      apiEndpoint = 'privacy (delete)';
+      result = await castle.deleteUserData(payload);
+    } else {
+      apiEndpoint = 'privacy (request)';
+      result = await castle.requestUserData(payload);
+    }
+  } catch (err) {
+    apiEndpoint = 'privacy';
+    result = { error: err instanceof APIError ? err.message : String(err) };
+  }
+
+  res.json({ api_endpoint: apiEndpoint, payload_to_castle: payload, result });
+});
+
+// ---------------------------------------------------------------------------
+// Events API
+// ---------------------------------------------------------------------------
+
+app.post('/events_schema', async (_req, res) => {
+  let result;
+  try {
+    result = await castle.eventsSchema();
+  } catch (err) {
+    result = { error: err instanceof APIError ? err.message : String(err) };
+  }
+
+  res.json({ api_endpoint: 'events/schema', payload_to_castle: {}, result });
+});
+
+app.post('/query_events', async (req, res) => {
+  const payload = {
+    filters: [
+      {
+        field: req.body.field || 'name',
+        op: req.body.op || '$eq',
+        value: req.body.value || '$login',
+      },
+    ],
+    sort: { field: 'created_at', order: 'desc' },
+  };
+
+  let result;
+  try {
+    result = await castle.queryEvents(payload);
+  } catch (err) {
+    result = { error: err instanceof APIError ? err.message : String(err) };
+  }
+
+  res.json({ api_endpoint: 'events/query', payload_to_castle: payload, result });
+});
+
+// ---------------------------------------------------------------------------
+
+app.listen(port, () => {
+  console.log(`Castle Node demo listening on http://localhost:${port}`);
+});
+
+module.exports = app;
