@@ -3,15 +3,15 @@ extends demo
 block ui
   .field
     label(for="name") name
-    input(type="text" id="name" value="demo-blocklist")
+    input.input(type="text" id="name" value="demo-blocklist")
   .field
     label(for="color") color
-    input(type="text" id="color" value="$red")
+    input.input(type="text" id="color" value="$red")
   .field
     label(for="primary_field") primary field
-    input(type="text" id="primary_field" value="user.email")
+    input.input(type="text" id="primary_field" value="user.email")
   .btn-row
-    button.primary(onclick="createList()") Create list
+    button.btn.btn-primary(onclick="createList()") Create list
 
 block desc
   p The 

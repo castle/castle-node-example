@@ -4,32 +4,32 @@ block content
   if home
     section.hero
       span.tag castle node sdk 3.0
-      h1 Castle workflows demo
-      p.lead.muted A small Express app showing how to integrate the Castle Node SDK.
+      h1(class="text-[2.2rem] mt-3") Castle workflows demo
+      p(class="text-[1.15rem] text-muted") A small Express app showing how to integrate the Castle Node SDK.
 
-    .feature-grid
+    .grid.gap-4.mt-8(style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));")
       each demo in demo_list
         a.feature(href="/" + demo.url)
           h3= demo.friendly_name
           p= demo.blurb
   else
-    .grid
+    .grid.gap-6.items-start(class="md:grid-cols-[1.3fr_1fr]")
       div
         .card
           .eyebrow workflow
-          h2= friendly_name
+          h2(class="text-[1.15rem]")= friendly_name
 
           #ui
             block ui
 
-          #desc.muted(style="margin-top:1.2rem;")
+          #desc.text-muted(style="margin-top:1.2rem;")
             block desc
 
           if wsd
-            hr
+            hr.my-5.border-border
             a(href=wsd target="_blank" rel="noopener") View the web sequence diagram &rarr;
 
-        #results-card.card.hidden
+        #results-card.card.hidden.mt-6
           .eyebrow result
           #results
 

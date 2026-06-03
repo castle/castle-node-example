@@ -2,21 +2,21 @@ extends demo
 
 block ui
   .btn-row(style="margin-top:0;")
-    button(onclick="eventsSchema()") Fetch schema
+    button.btn(onclick="eventsSchema()") Fetch schema
 
-  hr
+  hr.my-5.border-border
 
   .field
     label(for="field") field
-    input(type="text" id="field" value="name")
+    input.input(type="text" id="field" value="name")
   .field
     label(for="op") op
-    input(type="text" id="op" value="$eq")
+    input.input(type="text" id="op" value="$eq")
   .field
     label(for="value") value
-    input(type="text" id="value" value="$login")
+    input.input(type="text" id="value" value="$login")
   .btn-row
-    button.primary(onclick="queryEvents()") Query events
+    button.btn.btn-primary(onclick="queryEvents()") Query events
 
 block desc
   p The 

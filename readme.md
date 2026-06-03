@@ -13,6 +13,12 @@ This project demonstrates key components of several essential Castle workflows. 
 The browser SDK is also used to track page views (`Castle.page()`) and send an
 ad-hoc custom event (`Castle.custom()`).
 
+## Screenshots
+
+| Home | Login |
+| ---- | ----- |
+| ![Home](docs/screenshots/home.png) | ![Login](docs/screenshots/login.png) |
+
 ## Prerequisites
 
 You'll need a Castle tenant to run this app against. If you don't already have one, you can start a free trial at https://castle.io.
@@ -64,6 +70,21 @@ For development with auto-reload:
 
 ```bash
 npm run dev
+```
+
+## Styling (Tailwind CSS)
+
+The UI is styled with [Tailwind CSS](https://tailwindcss.com). The source lives in
+`src/tailwind.css` (design tokens are configured in `tailwind.config.js`) and is
+compiled to `static/styles.css`, which is committed so `npm start` and the Docker
+image work without a build step.
+
+If you change the templates (`views/`) or `src/tailwind.css`, regenerate the
+stylesheet:
+
+```bash
+npm run build:css      # one-off, minified build
+npm run watch:css      # rebuild on change during development
 ```
 
 ## Running the tests
