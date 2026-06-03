@@ -1,0 +1,32 @@
+extends demo
+
+block ui
+  .field
+    label(for="identifier") identifier
+    input(type="text" id="identifier" value=valid_username)
+  .field
+    label(for="identifier_type") identifier type
+    input(type="text" id="identifier_type" value="$email")
+  .btn-row
+    button.primary(onclick="privacy('request')") Request user data
+    button(onclick="privacy('delete')") Delete user data
+
+block desc
+  p The 
+    strong Privacy
+    |  API helps you honor GDPR/CCPA requests via 
+    code requestUserData
+    |  and 
+    code deleteUserData
+    | .
+  p A valid Castle API secret is required for these calls to succeed.
+
+block scripts
+  script.
+    function privacy(action) {
+      postJSON("/privacy_user_data", {
+        action: action,
+        identifier: document.getElementById("identifier").value,
+        identifier_type: document.getElementById("identifier_type").value,
+      }).then(renderCastleResponse);
+    }

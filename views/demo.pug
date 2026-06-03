@@ -1,0 +1,48 @@
+extends base
+
+block content
+  if home
+    section.hero
+      span.tag castle node sdk 3.0
+      h1 Castle workflows demo
+      p.lead.muted A small Express app showing how to integrate the Castle Node SDK.
+
+    .feature-grid
+      each demo in demo_list
+        a.feature(href="/" + demo.url)
+          h3= demo.friendly_name
+          p= demo.blurb
+  else
+    .grid
+      div
+        .card
+          .eyebrow workflow
+          h2= friendly_name
+
+          #ui
+            block ui
+
+          #desc.muted(style="margin-top:1.2rem;")
+            block desc
+
+          if wsd
+            hr
+            a(href=wsd target="_blank" rel="noopener") View the web sequence diagram &rarr;
+
+        #results-card.card.hidden
+          .eyebrow result
+          #results
+
+      aside
+        .card
+          .eyebrow session
+          ul.meta-list
+            li
+              span.k publishable key
+              span.v= castle_pk || '—'
+            li
+              span.k valid username
+              span.v= valid_username
+            li
+              span.k valid password
+              span.v= valid_password

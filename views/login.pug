@@ -1,0 +1,76 @@
+extends demo
+
+block ui
+  .btn-row(style="margin-top:0;")
+    button.ghost(onclick="fillForm('valid')") valid user + pw
+    button.ghost(onclick="fillForm('bad_pw')") valid user, bad pw
+    button.ghost(onclick="fillForm('bad_user')") invalid username
+
+  div(style="margin-top:1.2rem;")
+    .field
+      label(for="email") email
+      input(type="text" id="email" autocomplete="off")
+    .field
+      label(for="password") password
+      input(type="password" id="password")
+    label.checkbox
+      input(type="checkbox" id="remember")
+      |  Remember me
+    .btn-row
+      button.primary(onclick="login()") Log in
+    .form-links
+      a(href="/password_reset") Forgot your password?
+      a(href="#" onclick="trackCustomEvent('$custom'); return false;") Send a custom event
+
+block desc
+  p A login attempt has three common outcomes, and each maps to a different Castle endpoint:
+  ol
+    li
+      strong valid username + valid password
+      |  &rarr; 
+      code $login / $succeeded
+      |  sent to 
+      code /risk
+      | ; act on the verdict (allow, challenge, deny).
+    li
+      strong valid username + invalid password
+      |  &rarr; 
+      code $login / $failed
+      |  sent to 
+      code /filter
+      | .
+    li
+      strong invalid username
+      |  &rarr; 
+      code $login / $failed
+      |  (user id = null) sent to 
+      code /filter
+      | .
+
+block scripts
+  script.
+    function fillForm(state) {
+      var demo = window.CASTLE_DEMO || {};
+      var email = document.getElementById("email");
+      var password = document.getElementById("password");
+      if (state === "valid") {
+        email.value = demo.valid_username || "";
+        password.value = demo.valid_password || "";
+      } else if (state === "bad_pw") {
+        email.value = demo.valid_username || "";
+        password.value = demo.invalid_password || "";
+      } else {
+        email.value = "invalid_user@abc.com";
+        password.value = demo.invalid_password || "";
+      }
+    }
+
+    function login() {
+      withRequestToken(function (requestToken) {
+        postJSON("/evaluate_login", {
+          email: document.getElementById("email").value,
+          password: document.getElementById("password").value,
+          request_token: requestToken,
+        }).then(renderCastleResponse);
+      });
+    }
