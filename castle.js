@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const { Castle, FailoverStrategy, DEFAULT_ALLOWLIST } = require('@castleio/sdk');
 
