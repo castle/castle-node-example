@@ -47,6 +47,12 @@ function errorResult(err) {
   return { error: err instanceof APIError ? err.message : String(err) };
 }
 
+// True for IPv4/IPv6 loopback addresses, including the IPv4-mapped IPv6 form
+// Node reports for localhost connections.
+function isLoopback(ip) {
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+
 // Build the Express app around a Castle client. Accepting the client as an
 // argument keeps the routes easy to test (the SDK can be stubbed).
 function buildApp(castle = require('./castle')) {
@@ -94,17 +100,20 @@ function buildApp(castle = require('./castle')) {
   //
   // The SDK derives the client IP from headers only (X-Forwarded-For, then
   // Remote-Addr). In Node the peer address lives on the socket rather than in a
-  // header, so on localhost neither is present and Castle rejects the call with
-  // "context[ip] is missing". Expose the socket peer as Remote-Addr to mirror
-  // what WSGI/Rack do automatically. Behind a proxy, X-Forwarded-For (set with
-  // the real client IP) takes precedence and this fallback is ignored.
+  // header, so running this demo directly on localhost neither is present and
+  // Castle rejects the call with "context[ip] is missing". When the connection
+  // is loopback (i.e. local development) expose the socket peer as Remote-Addr
+  // so the demo works. In production a proxy sets X-Forwarded-For with the real
+  // client IP, so this fallback never applies.
   const buildContext = (req) => {
+    const peer = req.socket?.remoteAddress;
     if (
+      peer &&
+      isLoopback(peer) &&
       !req.headers['x-forwarded-for'] &&
-      !req.headers['remote-addr'] &&
-      req.socket?.remoteAddress
+      !req.headers['remote-addr']
     ) {
-      req.headers['remote-addr'] = req.socket.remoteAddress;
+      req.headers['remote-addr'] = peer;
     }
     return ContextPrepareService.call(req, {}, castle.configuration);
   };
