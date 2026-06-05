@@ -91,8 +91,23 @@ function buildApp(castle = require('./castle')) {
 
   // Build the request context (IP, headers, client id) Castle needs from a Node
   // request. Lists/Privacy/Events are account-level and don't need it.
-  const buildContext = (req) =>
-    ContextPrepareService.call(req, {}, castle.configuration);
+  //
+  // The SDK derives the client IP from headers only (X-Forwarded-For, then
+  // Remote-Addr). In Node the peer address lives on the socket rather than in a
+  // header, so on localhost neither is present and Castle rejects the call with
+  // "context[ip] is missing". Expose the socket peer as Remote-Addr to mirror
+  // what WSGI/Rack do automatically. Behind a proxy, X-Forwarded-For (set with
+  // the real client IP) takes precedence and this fallback is ignored.
+  const buildContext = (req) => {
+    if (
+      !req.headers['x-forwarded-for'] &&
+      !req.headers['remote-addr'] &&
+      req.socket?.remoteAddress
+    ) {
+      req.headers['remote-addr'] = req.socket.remoteAddress;
+    }
+    return ContextPrepareService.call(req, {}, castle.configuration);
+  };
 
   // a default value reused across the login / password-reset demos
   let registeredAt = '2020-02-23T22:28:55.387Z';
