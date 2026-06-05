@@ -7,7 +7,7 @@
     @apply min-h-screen bg-bg font-sans text-[15px] leading-relaxed text-ink antialiased;
     background-image: radial-gradient(
       1200px 600px at 80% -10%,
-      rgba(124, 92, 255, 0.12),
+      rgba(54, 94, 237, 0.12),
       transparent 60%
     );
   }
@@ -47,7 +47,7 @@
 
 .input:focus {
   @apply border-accent outline-none;
-  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.14);
+  box-shadow: 0 0 0 3px rgba(54, 94, 237, 0.14);
 }
 
 .btn {
@@ -82,14 +82,16 @@ pre.json {
   @apply border-success/40 bg-success/10;
 }
 .verdict-allow .verdict-action {
-  @apply bg-success text-bg;
+  @apply bg-success;
+  color: #0b1020;
 }
 
 .verdict-challenge {
   @apply border-challenge/40 bg-challenge/10;
 }
 .verdict-challenge .verdict-action {
-  @apply bg-challenge text-bg;
+  @apply bg-challenge;
+  color: #0b1020;
 }
 
 .verdict-deny {
