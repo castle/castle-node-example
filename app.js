@@ -21,7 +21,11 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 
-const { ContextPrepareService, APIError } = require('@castleio/sdk');
+const {
+  ContextPrepareService,
+  APIError,
+  WebhookVerificationError,
+} = require('@castleio/sdk');
 
 const { demos, demoList, validUrls } = require('./demo_config');
 
@@ -51,8 +55,21 @@ function buildApp(castle = require('./castle')) {
   app.set('views', path.join(__dirname, 'views'));
   app.set('view engine', 'pug');
 
-  app.use(express.json());
+  // Keep the raw body around so incoming webhooks can be signature-verified
+  // (the HMAC is computed over the exact bytes Castle sent).
+  app.use(
+    express.json({
+      verify: (req, _res, buf) => {
+        req.rawBody = buf;
+      },
+    })
+  );
   app.use('/static', express.static(path.join(__dirname, 'static')));
+
+  // In-memory store of the most recent webhooks received from Castle. A real
+  // app would persist these; an array is plenty for a localhost demo.
+  const receivedWebhooks = [];
+  let webhookSeq = 0;
 
   // Serve the Castle browser SDK straight from the npm install (node_modules)
   // instead of vendoring it into the repo. It ends up at /vendor/castle-js/...
@@ -103,6 +120,46 @@ function buildApp(castle = require('./castle')) {
         name: process.env.valid_name || 'Clark Kent',
       },
     });
+  });
+
+  // Webhooks demo. The receiver below stores verified payloads; this page lists
+  // them. Registered before the catch-all `/:demoName` route so it wins.
+  app.get('/webhooks', (req, res) => {
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    res.render('webhooks', {
+      ...getDefaultParams(),
+      ...demos.webhooks,
+      demo_name: 'webhooks',
+      webhooks: true,
+      webhook_endpoint: `${protocol}://${req.get('host')}/webhooks/castle`,
+      webhooks_received: receivedWebhooks,
+    });
+  });
+
+  // Receives webhooks from Castle. The signature is verified against the raw
+  // body; anything that fails verification gets a 404 so we don't reveal the
+  // endpoint to unauthenticated callers.
+  app.post('/webhooks/castle', (req, res) => {
+    try {
+      castle.verifyWebhookSignature(
+        req.rawBody || Buffer.from(''),
+        req.get('X-Castle-Signature')
+      );
+    } catch (err) {
+      if (err instanceof WebhookVerificationError) {
+        return res.status(404).render('error', getDefaultParams());
+      }
+      throw err;
+    }
+
+    receivedWebhooks.unshift({
+      id: (webhookSeq += 1),
+      received_at: new Date().toISOString(),
+      body: req.body,
+    });
+    receivedWebhooks.length = Math.min(receivedWebhooks.length, 50);
+
+    return res.status(204).end();
   });
 
   app.get('/:demoName', (req, res) => {

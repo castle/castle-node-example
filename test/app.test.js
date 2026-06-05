@@ -1,7 +1,7 @@
 'use strict';
 
 const request = require('supertest');
-const { Castle, APIError } = require('@castleio/sdk');
+const { Castle, APIError, WebhookVerificationError } = require('@castleio/sdk');
 const { buildApp } = require('../app');
 
 // Non-secret demo identity used across the tests.
@@ -65,7 +65,7 @@ describe('page routes', () => {
     expect(res.text).not.toContain('/vendor/castle-js/castle.browser.js');
   });
 
-  test.each(['signup', 'password_reset', 'lists', 'privacy'])(
+  test.each(['signup', 'password_reset', 'lists', 'privacy', 'webhooks'])(
     'GET /%s renders',
     async (name) => {
       const res = await request(app).get('/' + name);
@@ -293,5 +293,43 @@ describe('account-level APIs', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.result.error).toMatch(/401/);
+  });
+});
+
+describe('webhooks', () => {
+  test('a verified webhook is stored and listed', async () => {
+    const castle = stubbedCastle();
+    jest.spyOn(castle, 'verifyWebhookSignature').mockReturnValue(undefined);
+    const app = buildApp(castle);
+
+    const post = await request(app)
+      .post('/webhooks/castle')
+      .set('X-Castle-Signature', 'valid')
+      .send({ type: 'review.opened', data: { id: 'rev_1' } });
+
+    expect(post.status).toBe(204);
+    expect(castle.verifyWebhookSignature).toHaveBeenCalledTimes(1);
+
+    const list = await request(app).get('/webhooks');
+    expect(list.status).toBe(200);
+    expect(list.text).toContain('review.opened');
+  });
+
+  test('a webhook that fails verification is rejected with a 404', async () => {
+    const castle = stubbedCastle();
+    jest.spyOn(castle, 'verifyWebhookSignature').mockImplementation(() => {
+      throw new WebhookVerificationError('Invalid signature');
+    });
+    const app = buildApp(castle);
+
+    const res = await request(app)
+      .post('/webhooks/castle')
+      .set('X-Castle-Signature', 'bad')
+      .send({ type: 'review.opened' });
+
+    expect(res.status).toBe(404);
+
+    const list = await request(app).get('/webhooks');
+    expect(list.text).toContain('No webhooks received yet.');
   });
 });

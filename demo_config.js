@@ -23,6 +23,10 @@ const demos = {
     friendly_name: 'privacy',
     blurb: "Request or delete a user's data with the Privacy API.",
   },
+  webhooks: {
+    friendly_name: 'webhooks',
+    blurb: 'Verify and inspect incoming Castle webhooks.',
+  },
 };
 
 const demoList = Object.entries(demos).map(([url, demo]) => ({ url, ...demo }));
