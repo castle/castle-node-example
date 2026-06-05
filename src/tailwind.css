@@ -7,7 +7,7 @@
     @apply min-h-screen bg-bg font-sans text-[15px] leading-relaxed text-ink antialiased;
     background-image: radial-gradient(
       1200px 600px at 80% -10%,
-      rgba(124, 92, 255, 0.12),
+      rgba(54, 94, 237, 0.12),
       transparent 60%
     );
   }
@@ -39,7 +39,7 @@
 
 .navbar {
   @apply sticky top-0 z-50 flex flex-wrap items-center gap-6 border-b border-border px-6 py-3.5;
-  background: rgba(13, 16, 22, 0.8);
+  background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
 }
 
@@ -47,9 +47,13 @@
   @apply flex items-center gap-2 text-[1.05rem] font-bold text-ink hover:no-underline;
 }
 
-.brand-dot {
-  @apply h-2.5 w-2.5 rounded-full bg-accent;
-  box-shadow: 0 0 12px #7c5cff;
+.brand-logo {
+  @apply h-[1.4rem] w-[1.4rem] shrink-0 text-accent;
+  filter: drop-shadow(0 0 8px rgba(54, 94, 237, 0.35));
+}
+
+.brand-logo-lg {
+  @apply h-12 w-12;
 }
 
 .nav-links {
@@ -106,7 +110,7 @@
 
 .input:focus {
   @apply border-accent outline-none;
-  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.14);
+  box-shadow: 0 0 0 3px rgba(54, 94, 237, 0.14);
 }
 
 .checkbox {
@@ -166,15 +170,15 @@ pre.json {
 }
 
 .json .k {
-  color: #7ee0c8;
+  color: #0550ae;
 }
 
 .json .s {
-  color: #ffd479;
+  color: #0a7d33;
 }
 
 .json .n {
-  color: #84c1ff;
+  color: #b25000;
 }
 
 .json .b {
@@ -210,7 +214,8 @@ pre.json {
 }
 
 .verdict-allow .verdict-action {
-  @apply bg-success text-bg;
+  @apply bg-success;
+  color: #0b1020;
 }
 
 .verdict-challenge {
@@ -218,7 +223,8 @@ pre.json {
 }
 
 .verdict-challenge .verdict-action {
-  @apply bg-challenge text-bg;
+  @apply bg-challenge;
+  color: #0b1020;
 }
 
 .verdict-deny {

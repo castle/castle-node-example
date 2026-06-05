@@ -2,6 +2,21 @@
 
 require('dotenv').config({ quiet: true });
 
+// Demo fixture defaults. Only castle_pk and castle_api_secret need to be set in
+// .env; the simulated "valid user" the demo logs in falls back to these values.
+const demoDefaults = {
+  location: 'localhost',
+  valid_username: 'clark.kent@dailyplanet.com',
+  valid_name: 'Clark Kent',
+  valid_user_id: '00000000',
+  valid_password: '1234',
+  invalid_password: 'qwerty',
+  webhook_url: 'https://webhook.site',
+};
+for (const [key, value] of Object.entries(demoDefaults)) {
+  if (!process.env[key]) process.env[key] = value;
+}
+
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
