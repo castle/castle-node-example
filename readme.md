@@ -16,6 +16,7 @@ Server-rendered pages:
 - **password reset** – `$password_reset` via the non-blocking `log` endpoint
 - **lists** – the Lists API (`createList`, `fetchAllLists`)
 - **privacy** – the Privacy API (`requestUserData`, `deleteUserData`)
+- **webhooks** – incoming Castle webhooks are signature-verified with `verifyWebhookSignature` (against the `X-Castle-Signature` header) and the most recent payloads are listed
 
 Post-login `/account` page:
 

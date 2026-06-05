@@ -1,0 +1,26 @@
+extends demo
+
+block ui
+  p This page lists the most recent webhooks Castle has delivered to this app. Each one is signature-verified before it is stored.
+  .field
+    label receiver endpoint
+    input.input(type="text" value=webhook_endpoint readonly onclick="this.select()")
+  .btn-row
+    a.btn(href="/webhooks") Refresh
+  if webhooks_received && webhooks_received.length
+    each wh in webhooks_received
+      .result-block.mt-4
+        .label ##{wh.id} · #{wh.received_at}
+        pre(class="whitespace-pre-wrap text-[0.8rem]")= JSON.stringify(wh.body, null, 2)
+  else
+    p.text-muted.mt-4 No webhooks received yet.
+
+block desc
+  p Point a webhook at
+    code= " " + webhook_endpoint
+    |  from the Castle dashboard (Settings &rarr; Webhooks). Incoming requests are verified with
+    code  verifyWebhookSignature
+    |  against the
+    code  X-Castle-Signature
+    |  header; anything that fails verification gets a 404.
+  p Because this demo runs on localhost, Castle needs a public tunnel (e.g. ngrok) to reach the receiver.
