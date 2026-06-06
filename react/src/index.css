@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-h-screen bg-bg font-sans text-[15px] leading-relaxed text-ink antialiased;
+    background-image: radial-gradient(
+      1200px 600px at 80% -10%,
+      rgba(54, 94, 237, 0.12),
+      transparent 60%
+    );
+  }
+
+  a {
+    @apply text-accent no-underline hover:underline;
+  }
+
+  code {
+    @apply rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[0.86em];
+  }
+}
+
+.card {
+  @apply rounded-xl border border-border bg-surface p-6 shadow-card;
+}
+
+.eyebrow {
+  @apply mb-1.5 text-xs font-bold uppercase tracking-wider text-muted;
+}
+
+.tag {
+  @apply rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent;
+}
+
+.field {
+  @apply mb-3.5;
+}
+
+.field label {
+  @apply mb-1.5 block text-[0.82rem] font-semibold text-muted;
+}
+
+.input {
+  @apply w-full rounded-lg border border-border bg-bg-soft px-3 py-2.5 font-sans text-[0.95rem] text-ink transition;
+}
+
+.input:focus {
+  @apply border-accent outline-none;
+  box-shadow: 0 0 0 3px rgba(54, 94, 237, 0.14);
+}
+
+.btn {
+  @apply cursor-pointer rounded-lg border border-border bg-surface-2 px-4 py-2.5 font-sans text-[0.92rem] font-semibold text-ink transition hover:border-accent active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-primary {
+  @apply border-accent bg-accent text-white hover:bg-accent-hover;
+}
+
+.btn-ghost {
+  @apply bg-transparent;
+}
+
+.btn-row {
+  @apply mt-4 flex flex-wrap gap-2.5;
+}
+
+pre.json {
+  @apply m-0 overflow-auto rounded-lg border border-border bg-bg-soft p-4 font-mono text-[0.85rem] leading-normal text-ink;
+}
+
+.verdict {
+  @apply flex items-center gap-3.5 rounded-lg border border-border bg-surface-2 px-4 py-2.5;
+}
+
+.verdict-action {
+  @apply rounded-full px-2.5 py-1 text-[0.85rem] font-bold uppercase tracking-wider;
+}
+
+.verdict-allow {
+  @apply border-success/40 bg-success/10;
+}
+.verdict-allow .verdict-action {
+  @apply bg-success;
+  color: #0b1020;
+}
+
+.verdict-challenge {
+  @apply border-challenge/40 bg-challenge/10;
+}
+.verdict-challenge .verdict-action {
+  @apply bg-challenge;
+  color: #0b1020;
+}
+
+.verdict-deny {
+  @apply border-danger/40 bg-danger/10;
+}
+.verdict-deny .verdict-action {
+  @apply bg-danger text-white;
+}
+
+.chip {
+  @apply rounded-full border border-border bg-bg-soft px-2 py-0.5 font-mono text-xs text-muted;
+}

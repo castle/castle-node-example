@@ -1,0 +1,34 @@
+extends demo
+
+block ui
+  .field
+    label(for="name") name
+    input.input(type="text" id="name" value="demo-blocklist")
+  .field
+    label(for="color") color
+    input.input(type="text" id="color" value="$red")
+  .field
+    label(for="primary_field") primary field
+    input.input(type="text" id="primary_field" value="user.email")
+  .btn-row
+    button.btn.btn-primary(onclick="createList()") Create list
+
+block desc
+  p The 
+    strong Lists
+    |  API lets you manage allow/block lists programmatically. This demo calls 
+    code createList
+    |  and then 
+    code fetchAllLists
+    | .
+  p A valid Castle API secret is required for this call to succeed.
+
+block scripts
+  script.
+    function createList() {
+      postJSON("/create_list", {
+        name: document.getElementById("name").value,
+        color: document.getElementById("color").value,
+        primary_field: document.getElementById("primary_field").value,
+      }).then(renderCastleResponse);
+    }
