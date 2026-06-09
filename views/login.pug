@@ -23,8 +23,16 @@ block ui
       a(href="/signup") Create an account
 
 block desc
-  p A login attempt has three common outcomes, and each maps to a different Castle endpoint:
+  p A login reuses one request token across a two-step sequence:
   ol.list-decimal.pl-5.space-y-1
+    li
+      | the attempt is always filtered first &rarr; 
+      code $login / $attempted
+      |  sent to 
+      code /filter
+      |  (anonymous, so the email goes in 
+      code params
+      | ).
     li
       strong valid username + valid password
       |  &rarr; 
@@ -33,17 +41,10 @@ block desc
       code /risk
       | ; act on the verdict (allow, challenge, deny).
     li
-      strong valid username + invalid password
+      strong wrong password / unknown user
       |  &rarr; 
       code $login / $failed
       |  sent to 
-      code /filter
-      | .
-    li
-      strong invalid username
-      |  &rarr; 
-      code $login / $failed
-      |  (user id = null) sent to 
       code /filter
       | .
 
@@ -72,9 +73,12 @@ block scripts
           password: document.getElementById("password").value,
           request_token: requestToken,
         }).then(function (data) {
-          renderCastleResponse(data);
-          // On an allowed login, offer to continue to the React account page.
-          var action = data.result && data.result.policy && data.result.policy.action;
+          renderCastleSteps(data.steps);
+          // Act on the outcome (the last step): a /risk allow lets the user
+          // continue to the React account page.
+          var steps = data.steps || [];
+          var last = steps[steps.length - 1];
+          var action = last && last.result && last.result.policy && last.result.policy.action;
           if (action === "allow") {
             var results = document.getElementById("results");
             var wrap = document.createElement("div");

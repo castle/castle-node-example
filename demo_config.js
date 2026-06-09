@@ -4,11 +4,11 @@
 const demos = {
   signup: {
     friendly_name: 'sign up',
-    blurb: 'Evaluate a registration ($registration) with the risk endpoint.',
+    blurb: 'Filter a registration ($registration) before the account exists.',
   },
   login: {
     friendly_name: 'login',
-    blurb: 'Evaluate a login with the risk and filter endpoints.',
+    blurb: 'Filter the attempt, then assess a successful login with Risk.',
     wsd: 'https://www.websequencediagrams.com/files/render?link=Q9WYp8rNThVZhA1inf2FSLfjChYZTdHXyGB9zqvMNpsaAvKvJPARgo5LI5fM5K4D',
   },
   password_reset: {

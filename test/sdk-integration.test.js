@@ -86,8 +86,10 @@ function makeCastle(overrideFetch, extra = {}) {
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('risk / filter request building', () => {
-  test('a successful login issues a signed POST /v1/risk with the full payload', async () => {
+  test('a successful login filters the attempt then issues a signed POST /v1/risk', async () => {
     const fetch = recordingFetch({
+      'POST /v1/filter': () =>
+        httpResponse(200, { policy: { action: 'allow' }, risk: 0.1 }),
       'POST /v1/risk': () =>
         httpResponse(200, {
           policy: { action: 'allow' },
@@ -104,30 +106,42 @@ describe('risk / filter request building', () => {
 
     // app-level mapping
     expect(res.status).toBe(200);
-    expect(res.body.api_endpoint).toBe('risk');
-    expect(res.body.result.policy.action).toBe('allow');
-    expect(res.body.result.risk).toBe(0.1);
+    expect(res.body.steps).toHaveLength(2);
+    expect(res.body.steps[1].api_endpoint).toBe('risk');
+    expect(res.body.steps[1].result.policy.action).toBe('allow');
+    expect(res.body.steps[1].result.risk).toBe(0.1);
 
-    // SDK-level request
-    expect(fetch.calls).toHaveLength(1);
-    const call = fetch.calls[0];
-    expect(call.method).toBe('POST');
-    expect(call.pathname).toBe('/v1/risk');
-    expect(call.headers.Authorization).toBe(EXPECTED_AUTH);
-    expect(call.headers['Content-Type']).toBe('application/json');
-    expect(call.body).toMatchObject({
+    // SDK-level requests: Filter the attempt, then Risk the success — reusing
+    // the same request token.
+    expect(fetch.calls.map((c) => `${c.method} ${c.pathname}`)).toEqual([
+      'POST /v1/filter',
+      'POST /v1/risk',
+    ]);
+
+    const attempt = fetch.calls[0];
+    expect(attempt.body).toMatchObject({
+      type: '$login',
+      status: '$attempted',
+      request_token: 'tok_123',
+      params: { email: VALID_USERNAME },
+    });
+
+    const riskCall = fetch.calls[1];
+    expect(riskCall.headers.Authorization).toBe(EXPECTED_AUTH);
+    expect(riskCall.headers['Content-Type']).toBe('application/json');
+    expect(riskCall.body).toMatchObject({
       type: '$login',
       status: '$succeeded',
       request_token: 'tok_123',
       user: { id: VALID_USER_ID, email: VALID_USERNAME },
     });
-    expect(call.body.sent_at).toBeDefined();
-    expect(call.body.context).toBeInstanceOf(Object);
+    expect(riskCall.body.sent_at).toBeDefined();
+    expect(riskCall.body.context).toBeInstanceOf(Object);
     // the client IP from X-Forwarded-For is forwarded in the context
-    expect(call.body.context.ip).toBe('203.0.113.7');
+    expect(riskCall.body.context.ip).toBe('203.0.113.7');
   });
 
-  test('a failed login is routed to POST /v1/filter', async () => {
+  test('a failed login filters the attempt and the failure on POST /v1/filter', async () => {
     const fetch = recordingFetch({
       'POST /v1/filter': () =>
         httpResponse(200, { policy: { action: 'deny' }, risk: 0.97 }),
@@ -137,28 +151,33 @@ describe('risk / filter request building', () => {
       .post('/evaluate_login')
       .send({ email: VALID_USERNAME, password: INVALID_PASSWORD, request_token: 'tok' });
 
-    expect(res.body.api_endpoint).toBe('filter');
-    expect(res.body.result.policy.action).toBe('deny');
-    expect(fetch.calls[0].pathname).toBe('/v1/filter');
-    expect(fetch.calls[0].body).toMatchObject({ type: '$login', status: '$failed' });
+    expect(res.body.steps[1].api_endpoint).toBe('filter');
+    expect(res.body.steps[1].result.policy.action).toBe('deny');
+    expect(fetch.calls.map((c) => c.pathname)).toEqual(['/v1/filter', '/v1/filter']);
+    expect(fetch.calls[0].body).toMatchObject({ type: '$login', status: '$attempted' });
+    expect(fetch.calls[1].body).toMatchObject({
+      type: '$login',
+      status: '$failed',
+      matching_user_id: VALID_USER_ID,
+    });
   });
 
-  test('a new registration POSTs $registration to /v1/risk', async () => {
+  test('a new registration POSTs $registration / $attempted to /v1/filter', async () => {
     const fetch = recordingFetch({
-      'POST /v1/risk': () => httpResponse(200, { policy: { action: 'allow' }, risk: 0.2 }),
+      'POST /v1/filter': () => httpResponse(200, { policy: { action: 'allow' }, risk: 0.2 }),
     });
 
     const res = await request(buildApp(makeCastle(fetch)))
       .post('/evaluate_signup')
       .send({ name: 'Lois Lane', email: 'lois.lane@dailyplanet.com', request_token: 'tok' });
 
-    expect(res.body.api_endpoint).toBe('risk');
-    expect(fetch.calls[0].pathname).toBe('/v1/risk');
+    expect(res.body.api_endpoint).toBe('filter');
+    expect(fetch.calls[0].pathname).toBe('/v1/filter');
     expect(fetch.calls[0].body).toMatchObject({
       type: '$registration',
-      status: '$succeeded',
+      status: '$attempted',
       request_token: 'tok',
-      user: { email: 'lois.lane@dailyplanet.com', name: 'Lois Lane' },
+      params: { email: 'lois.lane@dailyplanet.com' },
     });
   });
 
@@ -215,7 +234,7 @@ describe('error mapping', () => {
       .send({ email: VALID_USERNAME, password: VALID_PASSWORD, request_token: 'tok' });
 
     expect(res.status).toBe(200);
-    expect(res.body.result.error).toMatch(/401/);
+    expect(res.body.steps[1].result.error).toMatch(/401/);
   });
 });
 
@@ -230,10 +249,10 @@ describe('failover', () => {
       .post('/evaluate_login')
       .send({ email: VALID_USERNAME, password: VALID_PASSWORD, request_token: 'tok' });
 
-    expect(res.body.api_endpoint).toBe('risk');
-    expect(res.body.result.failover).toBe(true);
-    expect(res.body.result.failover_reason).toBe('timeout');
-    expect(res.body.result.policy.action).toBe('deny');
+    expect(res.body.steps[1].api_endpoint).toBe('risk');
+    expect(res.body.steps[1].result.failover).toBe(true);
+    expect(res.body.steps[1].result.failover_reason).toBe('timeout');
+    expect(res.body.steps[1].result.policy.action).toBe('deny');
   });
 
   test('a 5xx returns a failover verdict (server error)', async () => {
