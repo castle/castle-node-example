@@ -21,22 +21,24 @@ block ui
       a(href="/login") Already have an account? Log in
 
 block desc
-  p A registration is a sensitive action, so it is risk-assessed:
+  p A registration is evaluated before the account exists, so it is anonymous activity sent to 
+    code /filter
+    |  with the form 
+    code params
+    | :
   ol.list-decimal.pl-5.space-y-1
     li
       strong a new email
       |  &rarr; 
-      code $registration / $succeeded
-      |  sent to 
-      code /risk
-      | ; act on the verdict (allow, challenge, deny).
+      code $registration / $attempted
+      | ; act on the verdict (allow, challenge, deny) before creating the account.
     li
       strong an email that already exists
       |  &rarr; 
       code $registration / $failed
-      |  sent to 
-      code /filter
-      | .
+      |  (resolved to the existing user via 
+      code matching_user_id
+      | ).
 
 block scripts
   script.

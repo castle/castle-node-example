@@ -119,7 +119,7 @@ function buildApp(castle = require('./castle')) {
   };
 
   // a default value reused across the login / password-reset demos
-  let registeredAt = '2020-02-23T22:28:55.387Z';
+  const registeredAt = '2020-02-23T22:28:55.387Z';
 
   // -------------------------------------------------------------------------
   // Page routes
@@ -203,33 +203,34 @@ function buildApp(castle = require('./castle')) {
   });
 
   // -------------------------------------------------------------------------
-  // Risk / Filter (registration)
+  // Filter (registration)
   // -------------------------------------------------------------------------
 
+  // A registration is evaluated before the account exists, so it is anonymous
+  // activity sent to /filter with the form params (email/phone only). A brand-
+  // new email is an attempt; an email that already belongs to a user is a failed
+  // registration, resolved to that user via matching_user_id.
   app.post('/evaluate_signup', async (req, res) => {
-    const { name, email, request_token } = req.body;
+    const { email, request_token } = req.body;
 
     const castleType = '$registration';
-    // An email that's already taken (the known demo user) is a failed
-    // registration and goes to /filter; a fresh sign-up is risk-assessed.
     const alreadyRegistered = email === process.env.valid_username;
-    const castleStatus = alreadyRegistered ? '$failed' : '$succeeded';
-    const apiEndpoint = alreadyRegistered ? 'filter' : 'risk';
+    const castleStatus = alreadyRegistered ? '$failed' : '$attempted';
 
     const payloadToCastle = {
       type: castleType,
       status: castleStatus,
-      user: { id: process.env.valid_user_id, email, name },
+      params: { email },
       request_token,
       context: buildContext(req),
     };
+    if (alreadyRegistered) {
+      payloadToCastle.matching_user_id = process.env.valid_user_id;
+    }
 
     let result;
     try {
-      result =
-        apiEndpoint === 'risk'
-          ? await castle.risk(payloadToCastle)
-          : await castle.filter(payloadToCastle);
+      result = await castle.filter(payloadToCastle);
     } catch (err) {
       result = errorResult(err);
     }
@@ -237,7 +238,7 @@ function buildApp(castle = require('./castle')) {
     const { context, ...echoedPayload } = payloadToCastle;
 
     res.json({
-      api_endpoint: apiEndpoint,
+      api_endpoint: 'filter',
       payload_to_castle: echoedPayload,
       result,
       castle_type: castleType,
@@ -246,67 +247,73 @@ function buildApp(castle = require('./castle')) {
   });
 
   // -------------------------------------------------------------------------
-  // Risk / Filter (login)
+  // Filter -> Risk (login)
   // -------------------------------------------------------------------------
 
+  // A login reuses one request token across two calls: first Filter the attempt
+  // while the visitor is still anonymous, then — on success — assess the
+  // authenticated user with Risk. A failed attempt stays on Filter.
   app.post('/evaluate_login', async (req, res) => {
     const { email, password, request_token } = req.body;
-
     const castleType = '$login';
-    let userId;
-    let castleStatus;
-    let apiEndpoint;
 
-    // check validity of username + password combo
-    if (email === process.env.valid_username) {
-      userId = process.env.valid_user_id;
+    const runStep = async (apiEndpoint, castleStatus, fields) => {
+      const payloadToCastle = {
+        type: castleType,
+        status: castleStatus,
+        ...fields,
+        request_token,
+        context: buildContext(req),
+      };
 
-      if (password === process.env.valid_password) {
-        castleStatus = '$succeeded';
-        apiEndpoint = 'risk';
-      } else {
-        castleStatus = '$failed';
-        apiEndpoint = 'filter';
+      let result;
+      try {
+        result =
+          apiEndpoint === 'risk'
+            ? await castle.risk(payloadToCastle)
+            : await castle.filter(payloadToCastle);
+      } catch (err) {
+        result = errorResult(err);
       }
-    } else {
-      apiEndpoint = 'filter';
-      castleStatus = '$failed';
-      userId = null;
-      registeredAt = null;
-    }
 
-    const payloadToCastle = {
-      type: castleType,
-      status: castleStatus,
-      user: { id: userId, email },
-      request_token,
-      context: buildContext(req),
+      // context is large and noisy; don't echo it back to the browser.
+      const { context, ...echoedPayload } = payloadToCastle;
+      return {
+        api_endpoint: apiEndpoint,
+        payload_to_castle: echoedPayload,
+        result,
+        castle_type: castleType,
+        castle_status: castleStatus,
+      };
     };
 
-    if (registeredAt) {
-      payloadToCastle.user.registered_at = registeredAt;
+    // Step 1 — always filter the attempt up front (anonymous -> params).
+    const steps = [await runStep('filter', '$attempted', { params: { email } })];
+
+    // Step 2 — the outcome, on the same request token.
+    if (
+      email === process.env.valid_username &&
+      password === process.env.valid_password
+    ) {
+      steps.push(
+        await runStep('risk', '$succeeded', {
+          user: {
+            id: process.env.valid_user_id,
+            email,
+            registered_at: registeredAt,
+          },
+        })
+      );
+    } else {
+      const fields = { params: { email } };
+      // A known email with a wrong password resolves to the existing user.
+      if (email === process.env.valid_username) {
+        fields.matching_user_id = process.env.valid_user_id;
+      }
+      steps.push(await runStep('filter', '$failed', fields));
     }
 
-    let result;
-    try {
-      result =
-        apiEndpoint === 'risk'
-          ? await castle.risk(payloadToCastle)
-          : await castle.filter(payloadToCastle);
-    } catch (err) {
-      result = errorResult(err);
-    }
-
-    // context is large and noisy; don't echo it back to the browser.
-    const { context, ...echoedPayload } = payloadToCastle;
-
-    res.json({
-      api_endpoint: apiEndpoint,
-      payload_to_castle: echoedPayload,
-      result,
-      castle_type: castleType,
-      castle_status: castleStatus,
-    });
+    res.json({ steps });
   });
 
   // -------------------------------------------------------------------------

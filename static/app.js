@@ -143,6 +143,21 @@ function renderCastleResponse(data) {
   showResultsCard();
 }
 
+// Renders an ordered sequence of Castle calls (e.g. the login Filter -> Risk
+// flow), one endpoint/verdict/payload/result block per step.
+function renderCastleSteps(steps) {
+  clearResults();
+  (steps || []).forEach(function (step) {
+    if (step.api_endpoint) addEndpointBadge(step.api_endpoint);
+    addVerdictBanner(step.result);
+    if (step.payload_to_castle) addJSONBlock("Payload sent to Castle", step.payload_to_castle);
+    if (step.result !== undefined && step.result !== null) {
+      addJSONBlock("Response from Castle", step.result);
+    }
+  });
+  showResultsCard();
+}
+
 // Tell Castle which page the user is on. Safe no-op if the browser SDK or the
 // publishable key is unavailable.
 function trackPage() {

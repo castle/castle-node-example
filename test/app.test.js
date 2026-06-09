@@ -81,7 +81,7 @@ describe('page routes', () => {
 });
 
 describe('POST /evaluate_login', () => {
-  test('valid username + valid password goes to risk', async () => {
+  test('filters the attempt first, then risk-assesses a valid login', async () => {
     const castle = stubbedCastle();
     const res = await request(buildApp(castle)).post('/evaluate_login').send({
       email: VALID_USERNAME,
@@ -90,17 +90,24 @@ describe('POST /evaluate_login', () => {
     });
 
     expect(res.status).toBe(200);
-    expect(res.body.api_endpoint).toBe('risk');
-    expect(res.body.castle_status).toBe('$succeeded');
+    expect(res.body.steps).toHaveLength(2);
+
+    const [attempt, outcome] = res.body.steps;
+    expect(attempt.api_endpoint).toBe('filter');
+    expect(attempt.castle_status).toBe('$attempted');
+    expect(attempt.payload_to_castle.params.email).toBe(VALID_USERNAME);
+    expect(attempt.payload_to_castle).not.toHaveProperty('context');
+
+    expect(outcome.api_endpoint).toBe('risk');
+    expect(outcome.castle_status).toBe('$succeeded');
+    expect(outcome.payload_to_castle.user.id).toBe(VALID_USER_ID);
+    expect(outcome.result.policy.action).toBe('allow');
+
+    expect(castle.filter).toHaveBeenCalledTimes(1);
     expect(castle.risk).toHaveBeenCalledTimes(1);
-    expect(castle.filter).not.toHaveBeenCalled();
-    // context must not be echoed back to the browser
-    expect(res.body.payload_to_castle).not.toHaveProperty('context');
-    expect(res.body.payload_to_castle.user.id).toBe(VALID_USER_ID);
-    expect(res.body.result.policy.action).toBe('allow');
   });
 
-  test('valid username + bad password goes to filter', async () => {
+  test('a wrong password filters the attempt then filters the failure', async () => {
     const castle = stubbedCastle();
     const res = await request(buildApp(castle)).post('/evaluate_login').send({
       email: VALID_USERNAME,
@@ -108,13 +115,16 @@ describe('POST /evaluate_login', () => {
       request_token: 'tok',
     });
 
-    expect(res.body.api_endpoint).toBe('filter');
-    expect(res.body.castle_status).toBe('$failed');
-    expect(castle.filter).toHaveBeenCalledTimes(1);
+    const [attempt, outcome] = res.body.steps;
+    expect(attempt.castle_status).toBe('$attempted');
+    expect(outcome.api_endpoint).toBe('filter');
+    expect(outcome.castle_status).toBe('$failed');
+    expect(outcome.payload_to_castle.matching_user_id).toBe(VALID_USER_ID);
+    expect(castle.filter).toHaveBeenCalledTimes(2);
     expect(castle.risk).not.toHaveBeenCalled();
   });
 
-  test('invalid username goes to filter with a null user id', async () => {
+  test('an unknown user filters the failure without a matching_user_id', async () => {
     const castle = stubbedCastle();
     const res = await request(buildApp(castle)).post('/evaluate_login').send({
       email: 'someone-else@example.com',
@@ -122,8 +132,11 @@ describe('POST /evaluate_login', () => {
       request_token: 'tok',
     });
 
-    expect(res.body.api_endpoint).toBe('filter');
-    expect(res.body.payload_to_castle.user.id).toBeNull();
+    const outcome = res.body.steps[1];
+    expect(outcome.api_endpoint).toBe('filter');
+    expect(outcome.castle_status).toBe('$failed');
+    expect(outcome.payload_to_castle).not.toHaveProperty('matching_user_id');
+    expect(outcome.payload_to_castle.params.email).toBe('someone-else@example.com');
   });
 
   test('surfaces API errors without crashing', async () => {
@@ -137,41 +150,42 @@ describe('POST /evaluate_login', () => {
     });
 
     expect(res.status).toBe(200);
-    expect(res.body.result.error).toMatch(/401/);
+    expect(res.body.steps[1].result.error).toMatch(/401/);
   });
 });
 
 describe('POST /evaluate_signup', () => {
-  test('a new email is risk-assessed as $registration', async () => {
+  test('a new email is filtered as $registration / $attempted', async () => {
     const castle = stubbedCastle();
     const res = await request(buildApp(castle)).post('/evaluate_signup').send({
       name: 'Lois Lane',
       email: 'lois.lane@dailyplanet.com',
-      password: 'whatever',
       request_token: 'tok',
     });
 
     expect(res.status).toBe(200);
-    expect(res.body.api_endpoint).toBe('risk');
+    expect(res.body.api_endpoint).toBe('filter');
     expect(res.body.castle_type).toBe('$registration');
-    expect(res.body.castle_status).toBe('$succeeded');
-    expect(castle.risk).toHaveBeenCalledTimes(1);
+    expect(res.body.castle_status).toBe('$attempted');
+    expect(res.body.payload_to_castle.params.email).toBe('lois.lane@dailyplanet.com');
+    expect(res.body.payload_to_castle).not.toHaveProperty('matching_user_id');
     expect(res.body.payload_to_castle).not.toHaveProperty('context');
+    expect(castle.filter).toHaveBeenCalledTimes(1);
+    expect(castle.risk).not.toHaveBeenCalled();
   });
 
-  test('an already-registered email goes to filter as $failed', async () => {
+  test('an already-registered email is filtered as $failed with matching_user_id', async () => {
     const castle = stubbedCastle();
     const res = await request(buildApp(castle)).post('/evaluate_signup').send({
       name: 'Clark Kent',
       email: VALID_USERNAME,
-      password: 'whatever',
       request_token: 'tok',
     });
 
     expect(res.body.api_endpoint).toBe('filter');
     expect(res.body.castle_status).toBe('$failed');
+    expect(res.body.payload_to_castle.matching_user_id).toBe(VALID_USER_ID);
     expect(castle.filter).toHaveBeenCalledTimes(1);
-    expect(castle.risk).not.toHaveBeenCalled();
   });
 });
 

@@ -80,3 +80,34 @@ describe('verdict banner', () => {
     expect(document.querySelector('.verdict')).toBeNull();
   });
 });
+
+describe('step sequence renderer', () => {
+  test('renders one endpoint badge and verdict per step', () => {
+    window.renderCastleSteps([
+      {
+        api_endpoint: 'filter',
+        payload_to_castle: { type: '$login', status: '$attempted' },
+        result: { policy: { action: 'allow' }, risk: 0.1 },
+      },
+      {
+        api_endpoint: 'risk',
+        payload_to_castle: { type: '$login', status: '$succeeded' },
+        result: { policy: { action: 'deny' }, risk: 0.9 },
+      },
+    ]);
+
+    const badges = [...document.querySelectorAll('.badge.endpoint')].map(
+      (b) => b.textContent
+    );
+    expect(badges).toEqual(['/filter', '/risk']);
+
+    const verdicts = [...document.querySelectorAll('.verdict-action')].map(
+      (v) => v.textContent
+    );
+    expect(verdicts).toEqual(['allow', 'deny']);
+
+    expect(
+      document.getElementById('results-card').classList.contains('hidden')
+    ).toBe(false);
+  });
+});
