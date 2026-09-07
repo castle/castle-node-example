@@ -47,6 +47,25 @@ function errorResult(err) {
   return { error: err instanceof APIError ? err.message : String(err) };
 }
 
+// 2.x ships castle.browser.js; 3.x ships castle.umd.js. The HTML always requests castle.umd.js.
+function resolveCastleJsFile(dir, filename) {
+  const aliases = {
+    'castle.umd.js': ['castle.umd.js', 'castle.browser.js'],
+    'castle.browser.js': ['castle.browser.js', 'castle.umd.js'],
+  };
+  const names = aliases[filename] || [filename];
+  if (!fs.existsSync(dir)) return null;
+  const root = fs.realpathSync(dir);
+  for (const name of names) {
+    const candidate = path.resolve(root, name);
+    if (!candidate.startsWith(root + path.sep)) continue;
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 // True for IPv4/IPv6 loopback addresses, including the IPv4-mapped IPv6 form
 // Node reports for localhost connections.
 function isLoopback(ip) {
@@ -86,6 +105,12 @@ function buildApp(castle = require('./castle')) {
     'castle-js',
     'dist'
   );
+  // 2.x ships castle.browser.js; 3.x ships castle.umd.js. The HTML always requests castle.umd.js.
+  app.get('/vendor/castle-js/:filename', (req, res, next) => {
+    const file = resolveCastleJsFile(CASTLE_JS_DIR, req.params.filename);
+    if (!file) return next();
+    res.type('application/javascript').sendFile(file);
+  });
   app.use('/vendor/castle-js', express.static(CASTLE_JS_DIR));
 
   // The post-login /account page is a React app (see ./react). When built, its

@@ -62,7 +62,19 @@ describe('page routes', () => {
     expect(res.text).toContain('Your account');
     // config for the React app is injected, not the global SDK chrome
     expect(res.text).toContain('window.CASTLE_ACCOUNT');
-    expect(res.text).not.toContain('/vendor/castle-js/castle.browser.js');
+    expect(res.text).not.toContain('/vendor/castle-js/castle.umd.js');
+  });
+
+  test('GET /login loads the Castle browser SDK as a UMD', async () => {
+    const res = await request(app).get('/login');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('/vendor/castle-js/castle.umd.js');
+  });
+
+  test('GET /vendor/castle-js/castle.umd.js serves the npm install', async () => {
+    const res = await request(app).get('/vendor/castle-js/castle.umd.js');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/javascript/);
   });
 
   test.each(['signup', 'password_reset', 'lists', 'privacy', 'webhooks'])(
