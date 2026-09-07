@@ -1,0 +1,43 @@
+name: Test against SDK main
+
+# Exercises the example app against the unreleased Castle Node SDK (main
+# branch). @castleio/sdk builds to a gitignored dist/ and has no prepare script,
+# so it cannot be installed from a Git ref directly; instead we clone, build and
+# pack the main branch into a tarball and install that.
+#
+# This is the permanent test/sdk-develop branch: every push to it runs the suite
+# against the latest main. Nightly/manual runs require this file to also live
+# on the default branch (GitHub only honours schedule/workflow_dispatch from the
+# default branch).
+on:
+  push:
+    branches: [test/sdk-develop]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Use Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: latest
+
+      - name: Build @castleio/sdk from the main branch
+        run: |
+          git clone --depth 1 --branch main https://github.com/castle/castle-node.git "$RUNNER_TEMP/castle-node"
+          cd "$RUNNER_TEMP/castle-node"
+          npm install
+          npm run build
+          npm pack
+          echo "SDK_TARBALL=$(ls "$RUNNER_TEMP"/castle-node/castleio-sdk-*.tgz)" >> "$GITHUB_ENV"
+
+      - name: Install the example against the main build
+        run: npm install "$SDK_TARBALL"
+
+      - run: npm test
