@@ -5,13 +5,13 @@ name: Test against SDK main
 # so it cannot be installed from a Git ref directly; instead we clone, build and
 # pack the main branch into a tarball and install that.
 #
-# This is the permanent test/sdk-develop branch: every push to it runs the suite
+# This is the permanent test/sdk-main branch: every push to it runs the suite
 # against the latest main. Nightly/manual runs require this file to also live
 # on the default branch (GitHub only honours schedule/workflow_dispatch from the
 # default branch).
 on:
   push:
-    branches: [test/sdk-develop]
+    branches: [test/sdk-main]
   workflow_dispatch:
   schedule:
     - cron: "0 6 * * *"
