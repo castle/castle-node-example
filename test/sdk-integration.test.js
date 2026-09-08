@@ -291,7 +291,7 @@ describe('failover', () => {
 });
 
 describe('log (fire-and-forget)', () => {
-  test('password reset POSTs $password_reset to /v1/log', async () => {
+  test('password reset POSTs $profile_reset to /v1/log', async () => {
     const fetch = recordingFetch({ 'POST /v1/log': () => httpResponse(200, {}) });
 
     const res = await request(buildApp(makeCastle(fetch)))
@@ -305,7 +305,7 @@ describe('log (fire-and-forget)', () => {
     expect(fetch.calls).toHaveLength(1);
     expect(fetch.calls[0].method).toBe('POST');
     expect(fetch.calls[0].pathname).toBe('/v1/log');
-    expect(fetch.calls[0].body).toMatchObject({ type: '$password_reset' });
+    expect(fetch.calls[0].body).toMatchObject({ type: '$profile_reset' });
   });
 
   test('logout POSTs $logout to /v1/log', async () => {

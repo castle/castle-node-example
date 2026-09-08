@@ -13,7 +13,7 @@ Server-rendered pages:
 
 - **sign up** – `$registration` to `filter` (anonymous, so the email goes in `params`): `$attempted` for a new email, `$failed` (resolved via `matching_user_id`) for an email that already exists
 - **login** – `$login` reusing one request token across two calls: `filter` `$attempted` first, then `risk` `$succeeded` on success or `filter` `$failed` (wrong password / unknown user); the verdict (allow / challenge / deny), risk score and signals are surfaced per step
-- **password reset** – `$password_reset` via the non-blocking `log` endpoint
+- **password reset** – `$profile_reset` via the non-blocking `log` endpoint
 - **lists** – the Lists API (`createList`, `fetchAllLists`)
 - **privacy** – the Privacy API (`requestUserData`, `deleteUserData`)
 - **webhooks** – incoming Castle webhooks are signature-verified with `verifyWebhookSignature` (against the `X-Castle-Signature` header) and the most recent payloads are listed
