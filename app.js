@@ -369,7 +369,7 @@ function buildApp(castle = require('./castle')) {
     // A new password that differs from the current one is a successful reset.
     const castleStatus =
       password === process.env.valid_password ? '$failed' : '$succeeded';
-    const castleType = '$password_reset';
+    const castleType = '$profile_reset';
 
     const payloadToCastle = {
       type: castleType,
@@ -383,7 +383,7 @@ function buildApp(castle = require('./castle')) {
       context: buildContext(req),
     };
 
-    // $password_reset is a good fit for the non-blocking log endpoint: record
+    // $profile_reset is a good fit for the non-blocking log endpoint: record
     // the event without waiting on a verdict.
     let error;
     try {
