@@ -27,6 +27,11 @@ interface CastleContextValue {
 
 const CastleContext = createContext<CastleContextValue | null>(null);
 
+interface CastleClient {
+  createRequestToken: () => PromiseLike<string>;
+  custom: (params: CustomParams) => unknown;
+}
+
 interface CastleProviderProps {
   publishableKey?: string;
   children: ReactNode;
@@ -40,10 +45,15 @@ interface CastleProviderProps {
 export function CastleProvider({ publishableKey, children }: CastleProviderProps) {
   const isConfigured = Boolean(publishableKey);
   const configuredRef = useRef(false);
+  const clientRef = useRef<CastleClient | null>(null);
 
   useEffect(() => {
     if (!publishableKey || configuredRef.current) return;
-    configure({ pk: publishableKey });
+    const configured = configure({ pk: publishableKey }) as CastleClient | void;
+    clientRef.current =
+      configured && typeof configured.createRequestToken === 'function'
+        ? configured
+        : { createRequestToken, custom };
     configuredRef.current = true;
   }, [publishableKey]);
 
@@ -53,14 +63,15 @@ export function CastleProvider({ publishableKey, children }: CastleProviderProps
       createRequestToken: async () => {
         if (!isConfigured) return '';
         try {
-          return await createRequestToken();
+          const client = clientRef.current;
+          return client ? await client.createRequestToken() : '';
         } catch (err) {
           console.error('Castle.createRequestToken failed', err);
           return '';
         }
       },
       trackCustom: (params) => {
-        if (isConfigured) custom(params);
+        clientRef.current?.custom(params);
       },
     }),
     [isConfigured],

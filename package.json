@@ -17,7 +17,8 @@
     "dev": "node --watch app.js",
     "build:css": "tailwindcss -i ./src/tailwind.css -o ./static/styles.css --minify",
     "watch:css": "tailwindcss -i ./src/tailwind.css -o ./static/styles.css --watch",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "node scripts/ensure-castle-umd.js"
   },
   "dependencies": {
     "@castleio/castle-js": "^2.8.5",
